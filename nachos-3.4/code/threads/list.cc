@@ -107,11 +107,11 @@ List::Prepend(void *item)
     ListElement *element = new ListElement(item, 0);
 
     if (IsEmpty()) {		// list is empty
-	first = element;
-	last = element;
+        first = element;
+        last = element;
     } else {			// else put it before first
-	element->next = first;
-	first = element;
+        element->next = first;
+        first = element;
     }
     numInList++;
 }
@@ -189,15 +189,15 @@ List::SortedInsert(void *item, int sortKey)
         last = element;
     } else if (sortKey < first->key) {	
 		// item goes on front of list
-	element->next = first;
-	first = element;
+        element->next = first;
+        first = element;
     } else {		// look for first elt in list bigger than item
         for (ptr = first; ptr->next != NULL; ptr = ptr->next) {
             if (sortKey < ptr->next->key) {
-		element->next = ptr->next;
-	        ptr->next = element;
+		        element->next = ptr->next;
+	            ptr->next = element;
                 numInList++;
-		return;
+		    return;
 	    }
 	}
 	last->next = element;		// item goes at end of list
@@ -226,7 +226,7 @@ List::SortedRemove(int *keyPtr)
     void *thing;
 
     if (IsEmpty()) 
-	return NULL;
+	    return NULL;
 
     thing = first->item;
     if (first == last) {	// list had one item, now has none 
@@ -257,19 +257,19 @@ List::Remove(void *item)
         removed = Remove();
         ASSERT(item == removed);
     } else {
-	prev = first;
+	    prev = first;
         for (ptr = first->next; ptr != NULL; prev = ptr, ptr = ptr->next) {
             if (item == ptr->item) {
-		prev->next = ptr->next;
-		if (prev->next == NULL) {
-		    last = prev;
-		}
-		delete ptr;
-		numInList--;
-		break;
-	    }
+		        prev->next = ptr->next;
+		        if (prev->next == NULL) {
+		            last = prev;
+		        }
+                delete ptr;
+                numInList--;
+                break;
+	        }
         }
-	ASSERT(ptr != NULL);	// should always find item!
+	    ASSERT(ptr != NULL);	// should always find item!
     }
    //ASSERT(!IsInList(item));
 }

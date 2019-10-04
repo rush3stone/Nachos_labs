@@ -3,6 +3,11 @@
 2、运行nachos相当于执行main.cc程序
 3、初始的main.cc程序功能是运行threadtest.cc,在两个进程之间进行切换，并打印出相关信息
 
+
+－Nachos线程和其他系统的区别
+    In contrast to other systems, Nachos does not maintain an explicit process table. Instead, information associated with thread is maintained as (usually) private data of a　**Thread object instance**. Thus, where a conventional operating system keeps thread information centralized in a single table, Nachos scatters its ``thread table entries'' all around memory; to get at a specific thread's information, a pointer to the thread instance is needed.
+
+
 ---
 ## Lab1
 ### Excercise3
@@ -71,10 +76,14 @@
 
 
 - 线程管理对应的代码在哪里？Nachos线程的TCB中管理了哪些基本信息？
+    在thread.cc中，Thread:Thread()定义了控制块TCB，他是继承了在thread.h中定义的Thread类，包含多个接口；
+    - **this->Yield()**: 实际是调用scheduler.cc中的FindNextToRun()选择readylist中的一个进程运行，如果readylist中没有其他进程，则当前进程继续运行
+    - **this->Sleep()**: Suspend the current thread, change its state to BLOCKED, and remove it from the ready list. If the ready list is empty, invoke interrupt->Idle() to wait for the next interrupt. Sleep is called when the current thread needs to be blocked until some future event takes place. It is the responsibility of this ``future event'' to wake up the blocked thread and move it back on to the ready list.
+    - **this->Finish()**: 
+        Finish()操作按理说需要删除当前进程的栈，但是自己就是运行在栈中，怎么能删除自己的栈呢？实际操作是把指针threadToBeDestroyed指向当前栈，然后执行Sleep()操作；之后等到scheduler切换到新进程后，会查看threadToBeDestroyed的位置，删除旧进程的栈（是在scheduler.cc的Run()接口中）；
 
-  在thread.cc中，Thread:Thread()定义了控制块TCB，他是继承了在thread.h中定义的Thread类， 
-
-
+*
+*
 
 - Nachos线程有几个状态？他们如何转换的
   线程调度器维护一个readylist，保存就绪进程；
@@ -93,6 +102,8 @@
 
 - 线程是如何切换的（switch）
   [阅读材料](https://www.ida.liu.se/~TDDI04/material/begguide/roadmap/node13.html#SECTION00041000000000000000)
+    
+
 
 
 - 线程fork时指定了线程要执行的函数，线程在执行该函数前都做了哪些工作

@@ -31,7 +31,6 @@
 //
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
-
 Thread::Thread(char* threadName)
 {
     name = threadName;
@@ -45,6 +44,36 @@ Thread::Thread(char* threadName)
             tidFlag[i] = TRUE;
             tidPointer[i] = this;
             this->tid = i;
+            break;
+        }
+        if(i == maxThreadNum-1) {
+            printf("Failed! There are already 128 threads. No more allowed.\n");
+        }
+        ASSERT(i != maxThreadNum-1); //abort
+    }
+
+
+#ifdef USER_PROGRAM
+    space = NULL;
+#endif
+}
+
+// Lab2: initialize priority
+Thread::Thread(char* threadName, int newPriority)
+{
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+
+    //Lab1: Excercise4
+    for(int i = 0; i < maxThreadNum; i++) {
+        if(!tidFlag[i]) {
+            tidFlag[i] = TRUE;
+            tidPointer[i] = this;
+            this->tid = i;
+            // Lab2: initialize priority
+            this->priority = newPriority;
             break;
         }
         if(i == maxThreadNum-1) {
@@ -85,6 +114,7 @@ Thread::~Thread()
 }
 
 
+//　Lab1: EX4
 //----------------------------------------------------------------------
 // Thread::TS
 // 	print infomation of all threads
@@ -98,7 +128,6 @@ Thread::TS() {
             printf("%s\t%d\t%d\t%s\n", tidPointer[i]->getName(), tidPointer[i]->getUserId(), tidPointer[i]->getThreadId(), TSToString[tidPointer[i]->getThreadStatus()]);
     }
 }
-
 
 
 
@@ -132,7 +161,8 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
 
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
     scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
-					// are disabled!
+					                // are disabled!
+
     (void) interrupt->SetLevel(oldLevel);
 }    
 
@@ -221,8 +251,8 @@ Thread::Yield ()
     
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+        scheduler->ReadyToRun(this);
+        scheduler->Run(nextThread);
     }
     (void) interrupt->SetLevel(oldLevel);
 }

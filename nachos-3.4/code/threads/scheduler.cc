@@ -56,7 +56,13 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
-    readyList->Append((void *)thread);
+
+    // Lab2: preemptive Priority-based algorithm
+    // insert the thread according to its priority
+    readyList->SortedInsert((void *)thread, thread->getPriority());   
+
+    // Nachos: 
+    // readyList->Append((void *)thread);
 }
 
 //----------------------------------------------------------------------
@@ -95,11 +101,11 @@ Scheduler::Run (Thread *nextThread)
 #ifdef USER_PROGRAM			// ignore until running user programs 
     if (currentThread->space != NULL) {	// if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
-	currentThread->space->SaveState();
+	    currentThread->space->SaveState();
     }
 #endif
     
-    oldThread->CheckOverflow();		    // check if the old thread
+    oldThread->CheckOverflow();   // check if the old thread
 					    // had an undetected stack overflow
 
     currentThread = nextThread;		    // switch to the next thread
@@ -123,13 +129,13 @@ Scheduler::Run (Thread *nextThread)
     // point, we were still running on the old thread's stack!
     if (threadToBeDestroyed != NULL) {
         delete threadToBeDestroyed;
-	threadToBeDestroyed = NULL;
+	    threadToBeDestroyed = NULL;
     }
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {		// if there is an address space
         currentThread->RestoreUserState();     // to restore, do it.
-	currentThread->space->RestoreState();
+	    currentThread->space->RestoreState();
     }
 #endif
 }

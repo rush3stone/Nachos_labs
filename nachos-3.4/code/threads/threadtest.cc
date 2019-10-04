@@ -127,7 +127,7 @@ void Lab1Excercise4Thread(int which) {
 
 void 
 Lab1Excercise4_2() {
-    DEBUG('t', "Entering Excercise4_2");
+    DEBUG('t', "Entering Lab1Excercise4_2");
     Thread *t1 = new Thread("t1");
     Thread *t2 = new Thread("t2");
     Thread *t3 = new Thread("t3");
@@ -143,6 +143,44 @@ Lab1Excercise4_2() {
     printf("---------- Threads Status --------------\n");
     currentThread->TS();
     printf("----------- End ------------------------\n");
+
+}
+
+static Thread *t[4];
+
+void
+Lab2Excercise3Execve(int which) {
+    printf("\n-------------- thread=%s, tid=%d, priority=%d -----------------\n", 
+        currentThread->getName(), currentThread->getThreadId(), currentThread->getPriority());
+    printf("Current_ReadyList:　");
+    scheduler->Print(); printf("\n\n");
+    
+    for(int i = 0; currentThread->getThreadId() == 0 && i < 3; i++) {
+        // Lab2:　judge to preempt or not
+        if(currentThread->getPriority() > t[i]->getPriority()) {
+            printf("Preempt Successful! thread=%s(%d) -> thread=%s(%d)\n", 
+            currentThread->getName(), currentThread->getPriority(), t[i]->getName(), t[i]->getPriority());
+            currentThread->Yield(); //但是Yield之后执行的是ReadyList的首进程
+        }
+    }
+}
+
+void
+Lab2Excercise3() {
+    DEBUG('t', "Entering Lab2Excercise3");
+    
+    // the priority of main is 0 as default
+    currentThread->setPriority(4); //但此处设置优先级并不会覆盖在ReadyList,只有在加入ReadyList时才会更新
+
+    Thread *t1 = new Thread("t1", 3); t[0]=t1;
+    Thread *t2 = new Thread("t2", 2); t[1]=t2;
+    Thread *t3 = new Thread("t3", 1); t[2]=t3;
+
+    t1->Fork(Lab2Excercise3Execve, (void*)t1->getThreadId());
+    t2->Fork(Lab2Excercise3Execve, (void*)t2->getThreadId());
+    t3->Fork(Lab2Excercise3Execve, (void*)t1->getThreadId());
+    
+    Lab2Excercise3Execve(currentThread->getThreadId()); // Execve and Yield main Thread
 
 }
 
@@ -169,6 +207,10 @@ ThreadTest()
 
     case 4:
         Lab1Excercise4_2();  // test TS commnand, show the status of all thread
+        break;
+
+    case 5:
+        Lab2Excercise3();
         break;
 
     default:

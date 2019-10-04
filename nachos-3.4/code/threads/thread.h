@@ -84,9 +84,15 @@ class Thread {
     int tid;
     int uid;
 
+    // Lab2: add priority
+    int priority;
 
   public:
-    Thread(char* debugName);		// initialize a Thread 
+    Thread(char* debugName); // initialize a Thread 
+
+    //Lab2: add parameter-priority in Thread()
+    Thread(char* debugName, int newPriority);		// initialize a Thread 
+    
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -117,6 +123,9 @@ class Thread {
     void setThreadId(int t_id) {tid = t_id;}
     int getThreadStatus() {return (status);}
 
+    // Lab2: setPriority, getPriority
+    int getPriority() {return (priority);}
+    void setPriority(int newPriority) {priority = newPriority;}
 
   private:
     // some of the private data for this class is listed above
@@ -149,14 +158,14 @@ class Thread {
 // Magical machine-dependent routines, defined in switch.s
 
 extern "C" {
-// First frame on thread execution stack; 
-//   	enable interrupts
-//	call "func"
-//	(when func returns, if ever) call ThreadFinish()
-void ThreadRoot();
+  // First frame on thread execution stack; 
+  //   	enable interrupts
+  //	call "func"
+  //	(when func returns, if ever) call ThreadFinish()
+  void ThreadRoot();
 
-// Stop running oldThread and start running newThread
-void SWITCH(Thread *oldThread, Thread *newThread);
+  // Stop running oldThread and start running newThread
+  void SWITCH(Thread *oldThread, Thread *newThread);
 }
 
 #endif // THREAD_H

@@ -29,7 +29,7 @@ class ListElement {
      ListElement(void *itemPtr, int sortKey);	// initialize a list element
 
      ListElement *next;		// next element on list, 
-				// NULL if this is the last
+				                // NULL if this is the last
      int key;		    	// priority, for a sorted list
      void *item; 	    	// pointer to item on the list
 };

@@ -213,12 +213,12 @@ Interrupt::Idle()
     DEBUG('i', "Machine idling; checking for interrupts.\n");
     status = IdleMode;
     if (CheckIfDue(TRUE)) {		// check for any pending interrupts
-    	while (CheckIfDue(FALSE))	// check for any other pending 
-	    ;				// interrupts
-        yieldOnReturn = FALSE;		// since there's nothing in the
-					// ready queue, the yield is automatic
+    	while (CheckIfDue(FALSE));	// check for any other pending interrupts
+
+        yieldOnReturn = FALSE;	// since there's nothing in the
+					            // ready queue, the yield is automatic
         status = SystemMode;
-	return;				// return in case there's now
+	    return;				// return in case there's now
 					// a runnable thread
     }
 
