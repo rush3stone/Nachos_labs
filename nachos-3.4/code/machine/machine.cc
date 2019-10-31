@@ -71,6 +71,11 @@ Machine::Machine(bool debug)
     pageTable = NULL;
 #endif
 
+//Lab3 Exercise 4: BitMap
+#ifdef USE_BITMAP
+    BitMap = 0;
+#endif
+
     singleStep = debug;
     CheckEndian();
 }
@@ -212,3 +217,38 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+//----------------------------Lab 3: Exercise 4 BitMap--------------------------
+#ifdef USER_PROGRAM
+
+int Machine::AllocateMem(void)
+{
+#if USE_BITMAP    
+    for(int i = 0; i < NumPhysPages; i++) {
+        if (!(BitMap >> i & 0x1)) { // 找到空页
+            BitMap |= 0x1 << i; // 标记为已用
+            DEBUG('M', "Allocate pageFrame: %d\n", i);
+            return i;
+        }
+    }
+    DEBUG('M', "No Empty PageFrame\n");
+    return -1;
+#endif    
+}
+
+void
+Machine::FreeMem(void)
+{
+#if USE_BITMAP
+    for(int i = 0; i < NumPhysPages; i++) {
+        if(pageTable[i].valid){
+            int phyFrame = pageTable[i].physicalPage;
+            BitMap &= ~(0x1 << phyFrame);
+            DEBUG('M', "Free PageFrame %d\n", phyFrame);
+        }
+    }
+    DEBUG('M', "BitMap after Freed: %08X\n", BitMap);
+#endif
+
+}
+
+#endif //USER_PROGRAM

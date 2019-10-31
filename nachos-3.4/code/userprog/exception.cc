@@ -75,8 +75,23 @@ ExceptionHandler(ExceptionType which)
         }
         //其他syscall后补
 
+        //Lab3 Exercise 4 BitMap
+        if(type == SC_Exit) {
+#ifdef USER_PROGRAM
+            if (currentThread->space != NULL) {
+#if USE_BITMAP
+                machine->FreeMem();
+#endif
+                delete currentThread->space;
+                currentThread->space = NULL;
+            }
+#endif // USER_PROGRAM
+
+            currentThread->Finish();
+        }
+
         IncrementPCRegs(); //避免进入无限循环
-                    //(系统调用是一种异常，但是发生异常是Nachos的PC不自增，这样就会一直执行此syscall)
+                    //(系统调用是一种异常，但是发生异常时Nachos的PC不自增，这样就会一直执行此syscall)
         return;
     } 
 
@@ -194,4 +209,3 @@ void IncrementPCRegs(void) {
 }
 
 //--------------------------------------------------------------------------
-

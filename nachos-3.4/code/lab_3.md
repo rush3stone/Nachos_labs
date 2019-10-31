@@ -145,9 +145,10 @@
 
 **具体Exercise完成情况**
 
-### 第一部分  TLB异常处理
+### **第一部分  TLB异常处理**
 
-#### Exercise 1 源代码阅读
+### Exercise 1 源代码阅读
+
   > - 阅读code/userprog/progtest.cc，着重理解nachos执行用户程序的过程，以及该过程中与内存管理相关的要点。
   > - 阅读code/machine目录下的machine.h(cc)，translate.h(cc)文件和code/userprog目录下的exception.h(cc)，理解当前Nachos系统所采用的TLB机制和地址转换机制。
 
@@ -304,7 +305,7 @@
 
 
 
-#### Exercise 2 TLB MISS 异常处理
+### Exercise 2 TLB MISS 异常处理
 
  > Task: 修改code/userprog目录下exception.cc中的ExceptionHandler函数，使得Nachos系统可以对TLB异常进行处理（TLB异常时，Nachos系统会抛出PageFaultException，详见code/machine/machine.cc）
 
@@ -428,7 +429,7 @@ Network I/O: packets received 0, sent 0
 
 
 
-#### Exercise 3 置换算法
+### Exercise 3 置换算法
 
 > Task: 为TLB机制实现至少两种置换算法，通过比较不同算法的置换次数可比较算法的优劣。
 
@@ -470,7 +471,7 @@ PrintTLBStatus(){
 
 
 
-##### **(一) FIFO置换**
+#### **(一) FIFO置换**
 
 - 在`exception.cc`中，修改`TLBHandler()`，增加分支
 ```C++
@@ -505,7 +506,9 @@ TLBasFIFO(TranslationEntry page) {
 }    
 #endif
 ```
-##### **(二) CLOCK置换**
+
+
+#### **(二) CLOCK置换**
 
 -  结合页表项中记录`use`，实现时钟循环置换算法
 
@@ -549,15 +552,122 @@ Machine halting!
 
 > 背景：目前Nachos系统中，类Class Thread的成员变量AddrSpace* space中使用TranslationEntry* pageTable来管理内存。应用程序的启动过程中，对其进行初始化；而在线程的切换过程中，亦会对该变量进行保存和恢复的操作（使得类Class Machine中定义的Class Machine::TranslationEntry* pageTable始终指向当前正在运行的线程的页表）。
 
-#### Exercise 4 内存全局管理数据结构
+
+
+### Exercise 4 内存全局管理数据结构
 
 > Task: 设计并实现一个全局性的数据结构（如空闲链表、位图等）来进行内存的分配和回收，并记录当前内存的使用状态。
 
+**解题思路：**
+
+以物理页为单位进行内存分配，`Nachos`中`NumPhysPages=32`，故只需32bit就能记录所有内存情况；
+
+**解决步骤：**
+
+- 在`userprog/MakeFile`中增加宏定义`USE_BITMAP`
+
+  ```makefile
+  DEFINES = -DUSER_PROGRAM ... -DUSE_TLB -DUSE_BITMAP
+  ```
+
+- 申明一个`unsigned int`变量即可(在`machine.h`中)，以及操作他的函数`AllocateMem()`，`FreeMem()`
+
+  ```c++
+  #ifdef USER_PROGRAM
+  		//Exercise 4 BitMap
+  		unsigned int BitMap;
+  
+  		void AllocateMem();
+  		void FreeMem();
+  #endif
+  ```
+
+- 在`machine．cc`中，对`BitMap`进行初始化，对函数进行定义（需要用位运算实现）；
+
+  ```C++
+  int Machine::AllocateMem(void)
+  {
+  #if USE_BITMAP    
+      for(int i = 0; i < NumPhysPages; i++) {
+          if (!(BitMap >> i & 0x1)) { // 找到空页
+              BitMap |= 0x1 << i; // 标记为已用
+              DEBUG('M', "Allocate pageFrame: %d\n", i);
+              return i;
+          }
+      }
+      DEBUG('M', "No Empty PageFrame\n");　//标记为M, 方便追踪
+      return -1;
+  #endif    
+  ```
+
+- 在`addrspace.cc`中，修改物理页的分配方式
+
+  ```C++
+  #ifdef USE_BITMAP
+      pageTable[i].physicalPage=machine->AllocateMem();
+  #else
+      pageTable[i].physicalPage = i;
+  #endif   
+  ```
+
+- 在`exception.cc`中增加系统调用`SC_Exit`的判断分支，并在其中判断是否启用`BitMap`并释放
+
+  ```C++
+  //Lab3 Exercise 4 BitMap
+  if(type == SC_Exit) {
+  #ifdef USER_PROGRAM
+      if (currentThread->space != NULL) {
+  #if USE_BITMAP
+          machine->FreeMem();
+  #endif
+          delete currentThread->space;
+          currentThread->space = NULL;
+      }
+  #endif // USER_PROGRAM
+  
+      currentThread->Finish(); //结束进程的话，就看不到最后的TLB Miss Rate了，因为它是在SC_halt中调用的
+  }
+  ```
+
+  
+
+**代码测试：** 运行`matmult.c`程序，由于
+
+```bash
+stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -x ../test/matmult -d MT
+Allocate pageFrame: 0
+Allocate pageFrame: 1
+...
+Allocate pageFrame: 24
+Allocate pageFrame: 25
+Free PageFrame 0
+Free PageFrame 1
+...
+Free PageFrame 25
+Free PageFrame 1033
+Free PageFrame 1634879077
+Free PageFrame 925907255
+BitMap after Freed: 00000000
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 91999, idle 0, system 10, user 91989
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+```
+
+**遗留问题：**　系统调用`SC_Exit`中考虑不够周全，此处仅为了测试，结合Exercise 5需要进行优化；
+
+---
 
 
 
-
-#### Exercise 5 多线程支持
+### Exercise 5 多线程支持
 
 > 目前Nachos系统的内存中同时只能存在一个线程，我们希望打破这种限制，使得Nachos系统支持多个线程同时存在于内存中。
 
@@ -569,9 +679,13 @@ from the comments: 一个运行用户程序的进程是有两组寄存器的，�
 
 
 
-#### Excercise 6 缺页中断支持
+
+
+### Excercise 6 缺页中断支持
 
 > 基于TLB机制的异常处理和页面替换算法的实践，实现缺页中断处理（注意！TLB机制的异常处理是将内存中已有的页面调入TLB，而此处的缺页中断处理则是从磁盘中调入新的页面到内存）、页面替换算法等。
+
+
 
 
 
