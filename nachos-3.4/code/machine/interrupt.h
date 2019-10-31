@@ -59,8 +59,7 @@ enum IntType { TimerInt, DiskInt, ConsoleWriteInt, ConsoleReadInt,
 class PendingInterrupt {
   public:
     PendingInterrupt(VoidFunctionPtr func, int param, int time, IntType kind);
-				// initialize an interrupt that will
-				// occur in the future
+				// initialize an interrupt that will occur in the future
 
     VoidFunctionPtr handler;    // The function (in the hardware device emulator)
 				                      // to call when the interrupt occurs

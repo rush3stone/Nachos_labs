@@ -31,7 +31,7 @@ SimpleThread(int which)
     int num;
     
     for (num = 0; num < 5; num++) {
-	printf("*** thread %d looped %d times\n", which, num);
+	    printf("*** thread %d looped %d times\n", which, num);
         currentThread->Yield();
     }
 }
@@ -67,6 +67,7 @@ Lab1Excercise3() {
     DEBUG('t', "Entering Excercise3");
 
     Thread *t = new Thread("t-1");
+    t->setUserId(731);
     t->Fork(Lab1Excercise3Thread, (void*)t->getUserId());
     Lab1Excercise3Thread(0);
 }
@@ -82,18 +83,9 @@ Lab1Excercise4_1() {
 }
 
 
-// void TS() {
-//     const char* TSToString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
-//     printf("Name\tUId\tTId\tThreadStatus\n");
-//     for(int i = 0; i < maxThreadNum; i++) {
-//         if(tidFlag[i])
-//             printf("%s\t%d\t%d\t%s\n", tidPointer[i]->getName(), tidPointer[i]->getUserId(), tidPointer[i]->getThreadId(), TSToString[tidPointer[i]->getThreadStatus()]);
-//     }
-// }
-
 void Lab1Excercise4Thread(int which) {
 
-    printf("thread_name=%s, uid=%d, tid=%d\n", currentThread->getName(), currentThread->getUserId(), currentThread->getThreadId());
+    printf("thread_name=%s (uid=%d, tid=%d) ==> ", currentThread->getName(), currentThread->getUserId(), currentThread->getThreadId());
 
     IntStatus currentLevel = interrupt->getLevel();
     switch (which)
@@ -102,6 +94,7 @@ void Lab1Excercise4Thread(int which) {
         printf("Yield\n");                    
         scheduler->Print(); printf("\n\n");   // print ready list
         currentThread->Yield();               // Yield, and turn status to Ready
+        printf("***** Enter t1 again and Finish ********\n"); //test: print when thread t1 finish
         break;
     case 2:
         printf("Sleep\n");
@@ -181,8 +174,46 @@ Lab2Excercise3() {
     t3->Fork(Lab2Excercise3Execve, (void*)t1->getThreadId());
     
     Lab2Excercise3Execve(currentThread->getThreadId()); // Execve and Yield main Thread
+    currentThread->TS();
 
 }
+
+//　lab2: Round Robin
+void ThreadWithTicks(int runningTime){
+    int num;
+    for(num = 0; num < runningTime*SystemTick; num++) {
+        printf("*** thread with running time %d looped %d times (stats->totalTicks: %d)\n", runningTime, num+1, stats->totalTicks);
+        interrupt->OneTick(); //make system time moving forward (advance simulated time)
+        //Switch interrupt on and off to invoke OneTick()
+        // interrupt->SetLevel(IntOn);
+        // interrupt->SetLevel(IntOff);
+    }
+    currentThread->Finish();
+}//ThreadWithTicks
+
+void 
+Lab2ChallengeRR()
+{
+    DEBUG('t', "Entering Lab2ChallengeRR");
+
+    printf("\nSystem initial ticks: system=%d, user=%d, total=%d\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+    
+    Thread *t1 = new Thread("7");
+    Thread *t2 = new Thread("5");
+    Thread *t3 = new Thread("3");
+    printf("\nAfter new　Threads ticks: system=%d, user=%d, total=%d\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+
+    t1->Fork(ThreadWithTicks, (void*)7);
+    t2->Fork(ThreadWithTicks, (void*)2);
+    t3->Fork(ThreadWithTicks, (void*)5);
+    printf("\nAfter Fork ticks: system=%d, user=%d, total=%d\n\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+
+    //update the lastSwitchTick
+    //(according to previous test, it will start from 50)
+    scheduler->lastSwitchTick = stats->totalTicks;
+    currentThread->Yield(); //yield the main thread
+
+}//Lab2ChallengeRR
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -211,6 +242,12 @@ ThreadTest()
 
     case 5:
         Lab2Excercise3();
+        break;
+
+    case 7:
+        printf("Lab2 Challenge Round Robin:\n");
+        printf("(Don't forget to add `-rr` to activate timer.)\n");
+        Lab2ChallengeRR();
         break;
 
     default:

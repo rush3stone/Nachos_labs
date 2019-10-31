@@ -25,7 +25,10 @@
 
 // dummy function because C++ does not allow pointers to member functions
 static void TimerHandler(int arg)
-{ Timer *p = (Timer *)arg; p->TimerExpired(); }
+{ 
+    Timer *p = (Timer *)arg; 
+    p->TimerExpired(); 
+}
 
 //----------------------------------------------------------------------
 // Timer::Timer
@@ -62,8 +65,7 @@ void
 Timer::TimerExpired() 
 {
     // schedule the next timer device interrupt
-    interrupt->Schedule(TimerHandler, (int) this, TimeOfNextInterrupt(), 
-		TimerInt);
+    interrupt->Schedule(TimerHandler, (int) this, TimeOfNextInterrupt(), TimerInt);
 
     // invoke the Nachos interrupt handler for this device
     (*handler)(arg);

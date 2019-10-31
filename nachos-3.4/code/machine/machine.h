@@ -194,6 +194,19 @@ extern void ExceptionHandler(ExceptionType which);
 				// user system calls and exceptions
 				// Defined in exception.cc
 
+//------------------ Lab3: Page Fault and TLB ----------------
+void TLBHandler(int virtAddr);
+void TLBasFIFO(TranslationEntry page);
+void TLBasClock(TranslationEntry page);
+
+// Exercise 6
+TranslationEntry PageFaultHandler(int virtAddr);
+
+// Lab3: get TLB Hit Rate
+extern int TLBMissCount;
+extern int translateCount;
+void PrintTLBStatus(void);
+// -----------------------------------------------------------
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  If the host machine

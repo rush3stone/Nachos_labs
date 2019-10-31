@@ -35,7 +35,11 @@ CPP = gcc -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort
+# default
+# all: halt shell matmult sort
+
+# Lab 3: Test Virtual Memory
+all: halt shell matmult sort pyq_test
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -65,3 +69,10 @@ matmult.o: matmult.c
 matmult: matmult.o start.o
 	$(LD) $(LDFLAGS) start.o matmult.o -o matmult.coff
 	../bin/coff2noff matmult.coff matmult
+
+# Lab3 Virtual Memory
+pyq_test.o: pyq_test.c
+	$(CC) $(CFLAGS) -c pyq_test.c
+pyq_test: pyq_test.o start.o
+	$(LD) $(LDFLAGS) start.o pyq_test.o -o pyq_test.coff
+	../bin/coff2noff pyq_test.coff pyq_test

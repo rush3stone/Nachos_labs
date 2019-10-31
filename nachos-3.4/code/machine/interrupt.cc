@@ -74,7 +74,7 @@ Interrupt::Interrupt()
 Interrupt::~Interrupt()
 {
     while (!pending->IsEmpty())
-	delete (PendingInterrupt *)pending->Remove();
+	    delete (PendingInterrupt *)pending->Remove();
     delete pending;
 }
 
@@ -122,7 +122,7 @@ Interrupt::SetLevel(IntStatus now)
 
     ChangeLevel(old, now);			// change to new state
     if ((now == IntOn) && (old == IntOff))
-	OneTick();				// advance simulated time
+	    OneTick();				// advance simulated time
     return old;
 }
 
@@ -155,26 +155,26 @@ Interrupt::OneTick()
 // advance simulated time
     if (status == SystemMode) {
         stats->totalTicks += SystemTick;
-	stats->systemTicks += SystemTick;
+	    stats->systemTicks += SystemTick;
     } else {					// USER_PROGRAM
-	stats->totalTicks += UserTick;
-	stats->userTicks += UserTick;
+	    stats->totalTicks += UserTick;
+	    stats->userTicks += UserTick;
     }
     DEBUG('i', "\n== Tick %d ==\n", stats->totalTicks);
 
 // check any pending interrupts are now ready to fire
     ChangeLevel(IntOn, IntOff);		// first, turn off interrupts
-					// (interrupt handlers run with
-					// interrupts disabled)
+					// (interrupt handlers run with interrupts disabled)
+
     while (CheckIfDue(FALSE))		// check for pending interrupts
 	;
     ChangeLevel(IntOff, IntOn);		// re-enable interrupts
     if (yieldOnReturn) {		// if the timer device handler asked 
 					// for a context switch, ok to do it now
-	yieldOnReturn = FALSE;
- 	status = SystemMode;		// yield is a kernel routine
-	currentThread->Yield();
-	status = old;
+        yieldOnReturn = FALSE;
+        status = SystemMode;		// yield is a kernel routine
+        currentThread->Yield();
+        status = old;
     }
 }
 
@@ -293,29 +293,28 @@ Interrupt::CheckIfDue(bool advanceClock)
     MachineStatus old = status;
     int when;
 
-    ASSERT(level == IntOff);		// interrupts need to be disabled,
-					// to invoke an interrupt handler
+    ASSERT(level == IntOff);   // interrupts need to be disabled,
+					        // to invoke an interrupt handler
     if (DebugIsEnabled('i'))
 	DumpState();
-    PendingInterrupt *toOccur = 
-		(PendingInterrupt *)pending->SortedRemove(&when);
+    PendingInterrupt *toOccur = (PendingInterrupt *)pending->SortedRemove(&when);
 
     if (toOccur == NULL)		// no pending interrupts
-	return FALSE;			
+	    return FALSE;			
 
     if (advanceClock && when > stats->totalTicks) {	// advance the clock
-	stats->idleTicks += (when - stats->totalTicks);
-	stats->totalTicks = when;
+        stats->idleTicks += (when - stats->totalTicks);
+        stats->totalTicks = when;
     } else if (when > stats->totalTicks) {	// not time yet, put it back
-	pending->SortedInsert(toOccur, when);
-	return FALSE;
+        pending->SortedInsert(toOccur, when);
+        return FALSE;
     }
 
 // Check if there is nothing more to do, and if so, quit
     if ((status == IdleMode) && (toOccur->type == TimerInt) 
 				&& pending->IsEmpty()) {
-	 pending->SortedInsert(toOccur, when);
-	 return FALSE;
+        pending->SortedInsert(toOccur, when);
+        return FALSE;
     }
 
     DEBUG('i', "Invoking interrupt handler for the %s at time %d\n", 
@@ -325,9 +324,9 @@ Interrupt::CheckIfDue(bool advanceClock)
     	machine->DelayedLoad(0, 0);
 #endif
     inHandler = TRUE;
-    status = SystemMode;			// whatever we were doing,
-						// we are now going to be
-						// running in the kernel
+    status = SystemMode;	// whatever we were doing,
+						// we are now going to be running in the kernel
+                        
     (*(toOccur->handler))(toOccur->arg);	// call the interrupt handler
     status = old;				// restore the machine status
     inHandler = FALSE;

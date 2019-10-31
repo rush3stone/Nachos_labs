@@ -151,3 +151,29 @@ Scheduler::Print()
     printf("Ready list contents:\n");
     readyList->Mapcar((VoidFunctionPtr) ThreadPrint);
 }
+
+
+//----------------------------------------------------------------------
+// RRHandler
+//
+//	"dummy" is because every interrupt handler takes one argument,
+//		whether it needs it or not.
+//----------------------------------------------------------------------
+static void
+RRHandler(int dummy)
+{
+    int timeDuration = stats->totalTicks - scheduler->lastSwitchTick;
+    printf("\nTimer interrupt with duration: %d", timeDuration);
+    if(timeDuration > TimerTicks){
+        if(interrupt->getStatus() != IdleMode) {
+            printf("(Determine to Context switch)\n");
+            interrupt->YieldOnReturn(); //
+            scheduler->lastSwitchTick = stats->totalTicks;
+        } else {
+            printf("Readylist is empty!\n");
+        }
+    }else{
+        printf("\n");
+    }
+
+}

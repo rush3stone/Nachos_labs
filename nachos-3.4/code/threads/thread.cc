@@ -47,7 +47,7 @@ Thread::Thread(char* threadName)
             break;
         }
         if(i == maxThreadNum-1) {
-            printf("Failed! There are already 128 threads. No more allowed.\n");
+            printf("Failed! There are already %d threads. No more allowed.\n", maxThreadNum);
         }
         ASSERT(i != maxThreadNum-1); //abort
     }
@@ -108,9 +108,9 @@ Thread::~Thread()
     if (stack != NULL)
 	DeallocBoundedArray((char *) stack, StackSize * sizeof(int));
 
-
     //Lab1: 
     tidFlag[this->tid] = FALSE;
+    tidPointer[this->tid] = NULL;
 }
 
 
@@ -122,10 +122,10 @@ Thread::~Thread()
 void
 Thread::TS() {
     const char* TSToString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
-    printf("Name\tUId\tTId\tThreadStatus\n");
+    printf("Name\tUId\tTId\tPriority\tThreadStatus\n");
     for(int i = 0; i < maxThreadNum; i++) {
         if(tidFlag[i])
-            printf("%s\t%d\t%d\t%s\n", tidPointer[i]->getName(), tidPointer[i]->getUserId(), tidPointer[i]->getThreadId(), TSToString[tidPointer[i]->getThreadStatus()]);
+            printf("%s\t%d\t%d\t%d\t%s\n", tidPointer[i]->getName(), tidPointer[i]->getUserId(), tidPointer[i]->getThreadId(), tidPointer[i]->getPriority(), TSToString[tidPointer[i]->getThreadStatus()]);
     }
 }
 
@@ -288,7 +288,7 @@ Thread::Sleep ()
 
     status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == NULL)
-	interrupt->Idle();	// no one to run, wait for an interrupt
+	    interrupt->Idle();	// no one to run, wait for an interrupt
         
     scheduler->Run(nextThread); // returns when we've been signalled
 }

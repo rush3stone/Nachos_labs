@@ -77,7 +77,7 @@ class Thread {
   private:
     // NOTE: DO NOT CHANGE the order of these first two members.
     // THEY MUST be in this position for SWITCH to work.
-    int* stackTop;			 // the current stack pointer
+    int* stackTop;			 // the current stack pointer(SP)
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
     // Lab1: add tid & uid
@@ -120,7 +120,7 @@ class Thread {
     // Lab1: setUid, getUid, getTid
     int getUserId() {return (uid);}
     int getThreadId() {return (tid);}
-    void setThreadId(int t_id) {tid = t_id;}
+    void setUserId(int u_id) {uid = u_id;}
     int getThreadStatus() {return (status);}
 
     // Lab2: setPriority, getPriority

@@ -67,7 +67,7 @@ static void
 TimerInterruptHandler(int dummy)
 {
     if (interrupt->getStatus() != IdleMode)
-	interrupt->YieldOnReturn();
+	    interrupt->YieldOnReturn();
 }
 
 //----------------------------------------------------------------------
@@ -86,6 +86,9 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
+
+    //lab2: Round Robin
+    bool roundRobin = FALSE;
 
     // Lab1: Ex4 
     for(int i = 0; i < maxThreadNum; i++) {
@@ -106,48 +109,58 @@ Initialize(int argc, char **argv)
 #endif
     
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
-	argCount = 1;
-	if (!strcmp(*argv, "-d")) {
-	    if (argc == 1)
-		debugArgs = "+";	// turn on all debug flags
-	    else {
-	    	debugArgs = *(argv + 1);
-	    	argCount = 2;
-	    }
-	} else if (!strcmp(*argv, "-rs")) {
-	    ASSERT(argc > 1);
-	    RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random
-						// number generator
-	    randomYield = TRUE;
-	    argCount = 2;
-	}
+        argCount = 1;
+        if (!strcmp(*argv, "-d")) {
+            if (argc == 1)
+            debugArgs = "+";	// turn on all debug flags
+            else {
+                debugArgs = *(argv + 1);
+                argCount = 2;
+            }
+        } else if (!strcmp(*argv, "-rs")) {
+            ASSERT(argc > 1);
+            RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random
+                            // number generator
+            randomYield = TRUE;
+            argCount = 2;
+
+        } else if(!strcmp(*argv, "-rr")) { //lab2: activate RR timer
+            ASSERT(argc > 1);
+            roundRobin = TRUE;
+            argCount = 2;
+        }
+
 #ifdef USER_PROGRAM
-	if (!strcmp(*argv, "-s"))
-	    debugUserProg = TRUE;
+        if (!strcmp(*argv, "-s"))
+            debugUserProg = TRUE;
 #endif
 #ifdef FILESYS_NEEDED
-	if (!strcmp(*argv, "-f"))
-	    format = TRUE;
+        if (!strcmp(*argv, "-f"))
+            format = TRUE;
 #endif
 #ifdef NETWORK
-	if (!strcmp(*argv, "-l")) {
-	    ASSERT(argc > 1);
-	    rely = atof(*(argv + 1));
-	    argCount = 2;
-	} else if (!strcmp(*argv, "-m")) {
-	    ASSERT(argc > 1);
-	    netname = atoi(*(argv + 1));
-	    argCount = 2;
-	}
+        if (!strcmp(*argv, "-l")) {
+            ASSERT(argc > 1);
+            rely = atof(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-m")) {
+            ASSERT(argc > 1);
+            netname = atoi(*(argv + 1));
+            argCount = 2;
+        }
 #endif
-    }
+    }//for
 
     DebugInit(debugArgs);			// initialize DEBUG messages
     stats = new Statistics();			// collect statistics
     interrupt = new Interrupt;			// start up interrupt handling
     scheduler = new Scheduler();		// initialize the ready queue
     if (randomYield)				// start the timer (if needed)
-	timer = new Timer(TimerInterruptHandler, 0, randomYield);
+	    timer = new Timer(TimerInterruptHandler, 0, randomYield);
+
+    //lab2: start the RR timer
+    if (roundRobin)
+        timer = new Timer(RRHandler, 0, FALSE);
 
     threadToBeDestroyed = NULL;
 

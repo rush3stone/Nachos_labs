@@ -28,9 +28,15 @@ class Scheduler {
     void Run(Thread* nextThread);	// Cause nextThread to start running
     void Print();			// Print contents of ready list
     
+    // lab2-RR
+    int lastSwitchTick; // record the last context switch time
+
   private:
     List *readyList;  	// queue of threads that are ready to run,
 				                // but not running
 };
+
+// lab2: RR
+extern void RRHandler(int dummy); //re-order the readylist when timer interrupt
 
 #endif // SCHEDULER_H

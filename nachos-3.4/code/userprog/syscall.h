@@ -124,6 +124,11 @@ void Fork(void (*func)());
  */
 void Yield();		
 
+//--------------- Lab3 ----------------------------------
+void IncrementPCRegs(void); // Advance the PC
+
+//-------------------------------------------------------
+
 #endif /* IN_ASM */
 
 #endif /* SYSCALL_H */
