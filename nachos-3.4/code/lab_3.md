@@ -46,9 +46,9 @@
 
 
 
-**姓名：彭宇清　　学号：1901210731**
+**姓名：青宇　　学号：190121$$$$**
 
-**日期：2019/10/13**
+**日期：2019/11/01**
 
 <div STYLE="page-break-after: always;"></div>
 **目录**
@@ -414,16 +414,13 @@ Disk I/O: reads 0, writes 0
 Console I/O: reads 0, writes 0
 Paging: faults 0
 Network I/O: packets received 0, sent 0
-
-
-
 ```
 
 ##### 遗留问题：
 
 - 为什么只有一次TLB失效？
 
-  **解决：**找到问题了，进入exception.cc/PageFaultException分支后忘加`return;`了，导致直接运行到最后，调用`NoException()`中断并终止了程序；
+  **解决：** 找到问题了，进入exception.cc/PageFaultException分支后忘加`return;`了，导致直接运行到最后，调用`NoException()`中断并终止了程序；
 
 - 需要自己再仔细看看输出的运行流程
 
@@ -556,14 +553,7 @@ Machine halting!
 
 > Task: 设计并实现一个全局性的数据结构（如空闲链表、位图等）来进行内存的分配和回收，并记录当前内存的使用状态。
 
-**１、增加全局指针变量指向所有进程**　分别在system.h/cc中声明、定义指向128个进程的指针，并在thread.cc中进程初始化时进行赋值。
 
-```C++
-    extern Thread *tidPointer[maxThreadNum];   // point of all Thread
-    tidPointer[i] = NULL; //system.cc
-
-    tidPointer[i] = this; // thread.cc
-```
 
 
 
@@ -571,7 +561,11 @@ Machine halting!
 
 > 目前Nachos系统的内存中同时只能存在一个线程，我们希望打破这种限制，使得Nachos系统支持多个线程同时存在于内存中。
 
+保存上下文切换的数据值，具体定义在`thread.h`的(143-155)
 
+from the comments: 一个运行用户程序的进程是有两组寄存器的，分别对应用户态和内核态
+
+// A thread running a user program actually has *two* sets of CPU registers: one for its state while executing user code, one for its state while executing kernel code.
 
 
 
@@ -641,21 +635,16 @@ Machine halting!
 
 ## 内容三：遇到的困难以及解决办法
 
-#### 困难：理解整个Nahcos的运行流程
-　等做完Lab回头来看就发现都是比较基础的东西，但是当拿到源码时还是头疼了好一会儿，不知道从何下手。开始着手做实验之后，结合老师给的参考资料，通读了Nachos源码的整体结构，还是有点云里雾里，然后通过阅读网上的资料，了解了其中代码每个模块的作用后，思路就比较清晰了！
+#### 困难：多线程
+
 
 
 
 
 ## 内容四：收获及感想
 
-- 关于gcc对于文件的编译和链接问题
+- 
 
-  通过对于Makefile的学习，以及结合CMU的深入理解计算机系统课程Linking部分，让我对于gcc的编译链接有了更深的理解，也了解了Makefile的基本原理和书写规范。
-
-- 关于操作系统进程的整个运行机制
-
-  之前准备考研时也系统学习了操作系统课程，但是当书本知识真的要转化为实操时，就会发觉原来的各种理解还不够透彻。通过学习和修改真实操作系统的源码，让自己对于脑中一些不清楚或理解有误的知识点变得明晰起来，也坚定了想要学好操作系统，必须吃透底层源码的决心。
 
 
 ## 内容五：对课程的意见和建议

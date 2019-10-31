@@ -48,18 +48,16 @@
 
 
 
-**姓名：彭宇清　　学号：1901210731**
+**姓名：青宇　　学号：190121$$$$**
 
 **日期：2019/10/13**
 
 <div STYLE="page-break-after: always;"></div>
-
 **目录**
 
 [TOC]
 
 <div STYLE="page-break-after: always;"></div>
-
 ## 内容一：总体概述
 
  承接上一个lab的内容，本次lab还是线程相关的部分，需要在Nachos原有的线程调度机制基础上，进行修改和添加新的调度算法。首先通过调研Linux系统中经典的调度算法，了解其实现方式，接着阅读Nachos源码，理解现有的线程实现机制和具体的调度算法，最后结合以上内容，新增基于优先级抢占的调度算法或者自己感兴趣的有挑战的调度算法。
@@ -261,7 +259,6 @@ Linux允许多个不同的调度算法并存，每个调度算法都有自己可
 
 [Tracing and Debugging Nachos Programs](https://users.cs.duke.edu/~chase/cps110-archive/nachos-guide/nachos-labs-13.html#29510)
 
-  
 ---
 ## 补充内容
 
@@ -295,14 +292,14 @@ Linux允许多个不同的调度算法并存，每个调度算法都有自己可
 - **OneTick**: 表示一次时钟，其中判断若YieldOnReturn==True,则执行Yield()，两种情况下会调用OneTick方法：
  >interrupts are re-enabled
 　a user instruction is executed
-　
+
   1. 时钟数自增
   2. 关中断，处理到时间的pendingInterupt
   3. 判断是否进行上下文切换（即切换进程？）判断一下yieldOnTurn是否为真
 　（yieldOnReturn: 标记从中断返回时是否切换上下文）
-  若是先设置machineStatus=SystemMode，然后currentThread->Yield，
-  最后返回用户态？（其中old表示进入时的machineStatus(153line)，应该是用户态吧）
-  
+    若是先设置machineStatus=SystemMode，然后currentThread->Yield，
+    最后返回用户态？（其中old表示进入时的machineStatus(153line)，应该是用户态吧）
+
   注意:内核态下每次时钟自增10,而用户态自增1(SystemTick=10, UserTick=1)
 
 - **YieldOneReturn**：cause a context switch on return from an interrupt handler
@@ -313,7 +310,7 @@ Linux允许多个不同的调度算法并存，每个调度算法都有自己可
   但如果其队列为空，则应该停止系统，因为如果console 或 network在运行的话，pending Interrupt队列不会为空；
 
 - **Schedule**：新定义一个pendingInterrupt并加入pendingList
-              
+  
 - **CheckIfDue**：
   传入的参数advanceClock，说明时钟是否需要增加
   pendingInterruptList是按照时间排序的，所以队首元素为最早会发生的中断
@@ -337,7 +334,6 @@ Linux允许多个不同的调度算法并存，每个调度算法都有自己可
 - 3. 在system.cc中新建一个Timer,该类内部会调用scheduler
   还是没懂Timer的模拟内部机制啊
 - 4. 在threadtest.cc中调用OneTick(),模拟时钟
-
 
 ---
 
