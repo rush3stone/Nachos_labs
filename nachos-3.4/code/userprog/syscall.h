@@ -125,7 +125,7 @@ void Fork(void (*func)());
 void Yield();		
 
 //--------------- Lab3 ----------------------------------
-void AddressSpaceControlHandler(int type); // Exit
+void ControlAddrSpaceWithExit(int type); // Exit
 void IncrementPCRegs(void); // Advance the PC
 
 //-------------------------------------------------------

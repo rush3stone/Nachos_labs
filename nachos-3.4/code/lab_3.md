@@ -12,8 +12,6 @@
 
 
 
-
-
 # 虚拟内存　实习报告
 
 
@@ -58,7 +56,7 @@
 <div STYLE="page-break-after: always;"></div>
 ## 内容一：总体概述
 
-　　本次实验主要内容是结合操作系统课堂上讲解的原理内容，对教学操作系统Nachos的线程机制进行阅读和理解，并在此基础上对其功能进行一定的修改和增加；其中涉及到了进程和线程的相关概念，线程的各种状态及其状态之间的转换，具体需要理解进程创建、资源分配、运行、睡眠以及cpu资源让渡等操作的实现方式。其中的关键点在于理解进程切换的机制。
+　　本次实验主要内容是结合操作系统课堂上讲解的原理内容，对教学操作系统Nachos的虚拟内存部分进行阅读和理解，并在此基础上对其功能进行一定的修改和增加；其中涉及到了地址空间，虚拟地址到物理地址的转换，TLB缓存以及物理空间管理方式等相关概念．需要完成？？？？？
 
 >  本实习希望通过修改Nachos系统平台的底层源代码，达到“实现虚拟存储系统”的目标。
 >
@@ -80,10 +78,13 @@
 
 任务完成列表
 
-|          | Exercise 1 | Exercise 2 | Exercise 3 | Exercise 4 |      |
-| -------- | ---------- | ---------- | ---------- | ---------- | ---- |
-| 第一部分 | Y          | Y          | Y          | Y          |      |
-|          |            |            |            |            |      |
+| 第一部分        | Exercise 1      | Exercise 2      | Exercise 3      |
+| --------------- | --------------- | --------------- | --------------- |
+|                 | Y               | Y               | Y               |
+| **第二部分**    | **Exercise 4**  | **Exercise 5**  | **Exercise 6**  |
+|                 | Y               |                 |                 |
+| **第三/四部分** | **Exercise ７** | **Challenge 1** | **Challenge 2** |
+|                 |                 |                 |                 |
 
 【实习建议】
 
@@ -126,13 +127,31 @@
 
 - 在userprog/下，使用命令`./nachos -x ../test/pyq_test`，即运行该用户程序
 
-  (因为main.cc中111行部分，在/userprog中命令行参数`-x`表示运行一个用户程序，另外最后追加`-d`参数可以查看整个程序的`DEBUG`内容，其后再追加参数`m`可只查看用`m`标记的debug语句)
+  (因为main.cc中line111部分，在/userprog中命令行参数`-x`表示运行一个用户程序，另外最后追加`-d`参数可以查看整个程序的`DEBUG`内容，其后再追加参数`m`可只查看用`m`标记的debug语句)
 
-  疑问：目前我直接修改matmult.cc文件进行测试是可以的，但是pyq_test提示无法打开？？
+  **疑问：**　目前我直接修改matmult.cc文件进行测试是可以正常运行的，但是pyq_test提示无法打开？？编译过程完全都是一样的啊，哪里少加了依赖？
 
 #### 用户程序的执行过程
 
-​	下面progtest.cc代码的解释中有详解
+- 命令行传入参数`-x`和以编译好的程序二进制文件名`filename`，
+- `main.cc`中使用参数`-x`调用`progtest.cc`中的`StartProcess()`函数，其功能：新建进程，初始化内存，执行传入的一个程序（更详细后面的`progtest.cc`的详解中有说）
+- 多进程：（Exercise 5实现）可以类比`StartProcess()`新增一个函数`MultiThread()`，只不过其中启动多个进程，分别初始化并执行对应的程序文件
+
+- 注：用户程序都是传入二进制文件名；
+
+  ```c++
+  OpenFile *executable = fileSystem->Open(filename);
+  ```
+
+  我把文件都放在`code/test/`目录下，使用如下命令运行：(e.g. matmult.cc)
+
+  ```bash
+  /code/userprog$ ./nachos -x ../test/matmult -d STt
+  ```
+
+  > 注：Debug对应参数： `S` - syscall, `T` - TLB, `t` - thread, `M` - Memory
+
+
 
 #### 地址转换的整体流程：
 
@@ -164,23 +183,25 @@
    #define TLBSize		4		// if there is a TLB, make it small
    ```
 
-   由此可知内存总大小`MemorySize`=32x128B=4KB
+   由此可知内存总大小`MemorySize=32x128B=4KB`
 
 - **userprog/progtest.cc**
 
-   调用用户程序从main.cc中开始，112行判断是否使用`-x`参数，若使用则调用`StartProcess`, 而`StartProcess`定义在`protest.cc`中，主要完成一下步骤
+   运行用户程序从main.cc中开始，112行判断是否使用`-x`参数，若使用则调用`StartProcess`, 而`StartProcess`定义在`protest.cc`中，主要完成以下步骤（新建进程并执行传入的程序(二进制文件形式)）
 
-   - 打开文件，加载代码 
+   - 打开文件，加载代码 `FileSystem::Open()`
 
    - 申请地址空间
 
    - 初始化寄存器，并加载页表内容
 
-   - 运行程序`machine->Run()` (具体实现在mipssim.cc中)
+   - 运行程序`machine->Run()` (具体实现在mipssim.cc中)　
+
+     **疑问：**　注释说`Run()`永远不会返回：是通过异常（中断）直接重新调度吗？
 
      其中的程序运行代码: **machine->run()**其实逻辑很简单，就是１设置为用户态２循环调用指令OneInstruction()，每次指令结束通过interrupt->oneTick()计时，并在其中检查中断．
-
-     **OnerInstruction()**的实现里分别进行指令读取(ReadMem())，解析执行(`instr->Decode()`)，然后计算下条指令地址，即`PC` 地址+4，但是当产生异常时，不会执行`PC`+4的操作，`PC`还是指向原来的指令，这样每次有异常产生时，处理完异常，Nachos会执行原来的指令；（比如缺页异常时，我们只需把缺页调入TLB，Nachos会重新执行该指令并解析该虚拟地址）
+     
+     **OneInstruction()**的实现里分别进行指令读取(ReadMem())，解析执行(`instr->Decode()`)，然后计算下条指令地址，即`PC` 地址+4，但是当产生异常时，不会执行`PC`+4的操作，`PC`还是指向原来的指令，这样每次有异常产生时，处理完异常，Nachos会执行原来的指令；（比如缺页异常时，我们只需把缺页调入TLB，Nachos会重新执行该指令并解析该虚拟地址）（但是对于系统调用，必须自己添加`PC+4`的操作啊，不然不就一直循环执行这一个系统调用了嘛！）
 
 
 
@@ -193,7 +214,7 @@
 
    - **CheckEndian()**:检查一下当前的编码方式是否和所声称的一致
 
-   - **Machine():** 初始化内存和寄存器值，若使用TLB的话，也需要初始化，不过也要设置USE_TLB宏
+   - **Machine():** 初始化内存和寄存器值，若使用TLB的话，也需要初始化，不过也要设置USE_TLB宏（MakeFile中）
 
    - **RaiseException():** 通过抛出异常，进行中断响应处理
 
@@ -204,8 +225,8 @@
 
   translate.h中：
 
-  - **TranslationEntry：** (页表项)即是页表的页表项结构，也是TLB的页表项的结构
-  定义了虚拟页到物理也的映射
+  - **TranslationEntry：** (页表项)即是普通内存中页的页表项结构，也是TLB中页的页表项结构
+  定义了虚拟页到物理也的映射，以及各种标记
 
   trainslate.cc中包含4块；
 
@@ -258,7 +279,7 @@
    定义了ExceptionHandler()，处理各种异常．Nachos的原始代码只处理`SC_Halt`类型的系统调用，所以需要自己添加对于其他异常的处理函数．
 
    ```C++
-   int type = machine->ReadRegister(2); //从特定寄存器获取异常类型
+   int type = machine->ReadRegister(2); //从特定寄存器获取系统调用的类型
    ```
 
    
@@ -280,7 +301,7 @@
     bzero(machine->mainMemory, size);
     ```
 
-    - 把代码和初始化数据复制入内存（未初始化数据默认赋值为0即可）
+    - 把代码和初始化数据复制入内存（未初始化数据默认赋值为0即可）（二进制文件）
 
     ```C++
     if (noffH.code.size > 0) {...}
@@ -317,18 +338,18 @@
 
 **代码修改部分：** exception.cc中的ExceptionHandler函数
 
-**疑问：**怎么区分TLB失效和页表失效呢？
+> **疑问：** 怎么区分TLB失效和页表失效呢？
+>
+> **答：** 此处先不用考虑页表失效的情况（Exercise 6实现），因为Nachos在把程序的所有代码和数据都加入内存(addrspace.cc lines74-87)，所以不会出现页表失效的情况；实现从内存获取页面并写入TLB的功能即可；需要区分TLB是否有空，有空则直接写入，没空则用某种置换算法进行换页（Exercise 3）
 
-**答：**此处先不用考虑页表失效的情况（Exercise 6实现），因为所有页都会被调入内存．实现从内存获取页面并写入TLB的功能即可；需要区分TLB是否有空，有空则直接写入，没空则用某种置换算法进行换页（Exercise 3）
-
-**解题思路：**产生`PageFaultException`时，该虚拟地址会一并传入`ExceptionHandler`，直接在页表中进行查找匹配即可
+**解题思路：**产生`PageFaultException`时，对应的虚拟地址会一并传入`ExceptionHandler`，计算其对应的物理页号和偏移，然后直接在页表中进行查找匹配即可；
 
 **１．更改userprog/Makefile**
 
 如果要使用TLB，必须定义宏`USE_TLB`
 
 ```C++
-DEFINES = -DUSE_TLB
+DEFINES = ... -DUSE_TLB
 ```
 
 **２．更改translate.cc，使TLB和页表可以共存**
@@ -336,32 +357,30 @@ DEFINES = -DUSE_TLB
  ```C++
 // we must have either a TLB or a page table, but not both!
 // ASSERT(tlb == NULL || pageTable == NULL);	
-// ASSERT(tlb != NULL || pageTable != NULL);	
+ASSERT(tlb != NULL || pageTable != NULL);	//At least one of them exists
  ```
 
 **３．修改exception.cc，增加处理PageFaultException的Handler**
 
-产生异常的虚拟地址保存在`BadVAddrReg`寄存器中(在machine.h的60-70定义了一组特殊的寄存器)，可以通过它得到该地址；
-
-> 由于Nachos在把程序的所有代码和数据都加入内存，所以不会出现查询页表发生PageFaultException的情况；
+产生异常的虚拟地址保存在`BadVAddrReg`寄存器中(在machine.h的line60-70定义了一组特殊的寄存器)，可以通过它得到该虚拟地址；
 
  ```C++
 // Lab3 Exercise2 & 3
 if(which == PageFaultException) {
 	if(machine->tlb==NULL){ //如果TLB为空，说明是页表失效
         //由于Nachos默认会把程序的所有代码和数据都加入内存，所以不会出现查询页表发生PageFault的情况；
-            ASSERT(FALSE); //报错
-        }else{//
-            int BadVAddr = machine->ReadRegister(BadVAddrReg);
-            TLBHandler(BadVAddr);
-        }
+        ASSERT(FALSE); //报错
+    }else{//
+        int BadVAddr = machine->ReadRegister(BadVAddrReg);
+        TLBHandler(BadVAddr);
     }
+}
  ```
 
 在`TLBHandler()`中处理TLB失效的异常：
 
 ```C++
-int TLBreplaceIdx = 0; //TLB pointer
+int TLBreplaceIdx = 0; //TLB pointer, use for CLOCK method
 
 void
 TLBHandler(int VirtAddr) {
@@ -370,9 +389,9 @@ TLBHandler(int VirtAddr) {
     //获取页面内容
     TranslationEntry phyPage = machine->pageTable[vpn];
 
-    //假设TLB大小为２（但是machine.h中宏定义为４）
+    //machine.h中定义TLBSize为４
     machine->tlb[TLBreplaceIdx] = phyPage;
-    TLBreplaceIdx = TLBreplaceIdx ? 0 : 1; // 0/1循环
+    TLBreplaceIdx = (++TLBreplaceIdx) % TLBSize; // 循环搜索
 }
 ```
 
@@ -417,7 +436,7 @@ Paging: faults 0
 Network I/O: packets received 0, sent 0
 ```
 
-##### 遗留问题：
+**遗留问题：**
 
 - 为什么只有一次TLB失效？
 
@@ -453,7 +472,7 @@ if (exception != NoException) {
 translateCount++; //Lab3: use to compute TLB Hit rate　(translate)
 ```
 
-​		最后在执行`exception.cc`中的系统调用`halt`时，进行`LTB Hit Rate`的计算；其中输出标记为`DEBUG('T')`，之后方便追踪；
+​		最后在执行`exception.cc`中的系统调用`halt`时，进行`LTB Hit Rate`的计算；其中输出标记为`DEBUG('T')`，方便之后追踪；
 
 ```C++
 if(type == SC_Halt){
@@ -484,7 +503,7 @@ PrintTLBStatus(){
     TLBreplaceIdx = (++TLBreplaceIdx) % 4; //TLBSize is 4
 #endif
 ```
-- 实现TLBasFIFO置换算法：如果存在空闲则直接存入，所全满，则替换首页，暂时不考虑是否被修改的问题；
+- 实现TLBasFIFO置换算法：如果存在空闲则直接存入，若全满，则替换首页，暂时不考虑是否被修改的问题；
 ```c++
 #ifdef TLB_FIFO
 void
@@ -535,6 +554,8 @@ TLBasClock(TranslationEntry page) {
 ```
 **代码测试：**　分别用两种置换算法运行同一个程序，输出缺页率进行对比；
 
+> 注：Debug对应参数： `S` - syscall, `T` - TLB, `t` - thread, `M` - Memory
+
 ```bash
 stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -x ../test/matmult -d T
 # FIFO
@@ -546,7 +567,15 @@ TLBSize=4, TLB Miss: 8779, TLB Hit: 104900, Total Translation: 113679, TLB Miss 
 Machine halting!
 ```
 
+**遗留问题：**
 
+- 为什么两种置换算法的TLB失效率相差不大呢？
+
+  是因为矩阵相乘的原因吗？
+
+  
+
+---
 
 ### 第二部分 多页式内存管理
 
@@ -610,11 +639,13 @@ Machine halting!
   #endif   
   ```
 
-- 在`exception.cc`中增加系统调用`SC_Exit`的判断分支，并在其中判断是否启用`BitMap`并释放
+- 在`exception.cc`中增加系统调用`SC_Exit`的判断分支，并在其中判断是否启用`BitMap`并释放内存空间；
 
   ```C++
   //Lab3 Exercise 4 BitMap
   if(type == SC_Exit) {
+      PrintTLBStatus(); //print TLB current status
+      
   #ifdef USER_PROGRAM
       if (currentThread->space != NULL) {
   #if USE_BITMAP
@@ -625,10 +656,10 @@ Machine halting!
       }
   #endif // USER_PROGRAM
   
-      currentThread->Finish(); //结束进程的话，就看不到最后的TLB Miss Rate了，因为它是在SC_halt中调用的
-  }
+      currentThread->Finish(); //结束进程
+}
   ```
-
+  
   
 
 **代码测试：** 运行`matmult.c`程序，由于
@@ -650,6 +681,7 @@ Free PageFrame 925907255
 BitMap after Freed: 00000000
 No threads ready or runnable, and no pending interrupts.
 Assuming the program completed.
+TLBSize=4, TLB Miss: 8779, TLB Hit: 104900, Total Translation: 113679, TLB Miss Rate: 7.72%
 Machine halting!
 
 Ticks: total 91999, idle 0, system 10, user 91989
@@ -661,7 +693,11 @@ Network I/O: packets received 0, sent 0
 Cleaning up...
 ```
 
-**遗留问题：**　系统调用`SC_Exit`中考虑不够周全，此处仅为了测试，结合Exercise 5需要进行优化；
+**遗留问题：**　
+
+- 输出最后显示`Free PageFrame 925907255`是什么意思，不可能分配到如此大的页啊？
+
+- 系统调用`SC_Exit`中考虑不够周全，此处仅为了测试，结合Exercise 5需要进行优化；
 
 ---
 
@@ -677,7 +713,280 @@ from the comments: 一个运行用户程序的进程是有两组寄存器的，�
 
 // A thread running a user program actually has *two* sets of CPU registers: one for its state while executing user code, one for its state while executing kernel code.
 
+> 背景：初始的Nahcos，每次加入新进程前，都会先判断新进程的总大小，若比物理内存小，则清空内存，然后全部装入！
 
+
+
+#### Nachos中多进程原理梳理
+
+**用户进程上下文：**
+
+- Nachos中，一个用户进程的上下文包括：
+
+  专门针对`user program`的一组寄存器（可以看作是用户栈？）和地址空间
+
+  ```C++
+  //寄存器＆地址空间 (thread.h - line148 & 154)
+  int userRegisters[NumTotalRegs];	// user-level CPU register state
+  AddrSpace *space;			// User code this thread is running.
+  
+  //地址空间的内容（上面space的属性） (addrspace.h - lines35-37)
+  TranslationEntry *pageTable;	// Assume linear page table translation for now!
+  unsigned int numPages;		// Number of pages in the virtual address space
+  ```
+
+  
+
+- 用户进程上下文的**保存和恢复**：
+
+  寄存器部分：申明在`thread.h`中 `lines143-155`，并在`thread.cc`中定义；
+
+  ```C++
+  void SaveUserState();		// save user-level register state
+  void RestoreUserState();		// restore user-level register state
+  ```
+
+  地址空间（内存状态）部分，定义在`addrspace.cc`中`lines 31-32`
+
+  ```c++
+  void SaveState();			// Save/restore address space-specific
+  void RestoreState();		// info on a context switch 
+  ```
+
+- 用户进程切换时：在 `scheduler.cc`中
+
+  `lines 101-106`　保存被切换进程的上下文
+
+  ```c++
+  if (currentThread->space != NULL) {	// if this thread is a user program,
+  	currentThread->SaveUserState(); // save the user's CPU registers
+  	currentThread->space->SaveState();
+  }
+  ```
+
+  `lines 135-140`  恢复将要运行进程的上下文
+
+  ```c++
+  if (currentThread->space != NULL) {		// if there is an address space
+  	currentThread->RestoreUserState();     // to restore, do it.
+  	currentThread->space->RestoreState();
+  }
+  ```
+
+
+
+**结束用户进程：**
+
+- 由注释可得，`machine->Run()`不会返回，那么进程的结束和内存空间释放在什么时候进行呢？
+
+  在用户进程结束时(return)执行`Exit`系统调用，在`Exit()`中操作
+
+  由`exception.cc`中注释(`lines36-45`)可知进行系统调用时各个参数和返回值对应的寄存器；
+
+  ```c++
+  // 	For system calls, the following is the calling convention:
+  //
+  // 	system call code -- r2
+  //		arg1 -- r4
+  //		arg2 -- r5
+  //		arg3 -- r6
+  //		arg4 -- r7
+  //
+  //	The result of the system call, if any, must be put back into r2. 
+  //
+  // And don't forget to increment the pc before returning. (Or else you'll
+  // loop making the same system call forever!
+  ```
+
+写一个单独处理`systems call: Exit`的函数，结束进程并释放内存空间；
+
+```c++
+//Exit syscall
+void ControlAddrSpaceWithExit(int type) {
+    if(type == SC_Exit) {
+        PrintTLBStatus(); //Print out TLB current status
+
+    //由line36注释：4号寄存器保存传入的第一个参数，对于Exit来说，正常退出，会传回状态０
+    int status = machine->ReadRegister(4);
+    if(status == 0) {
+        DEBUG('S', "User Program Exit Correctly(status 0)\n");
+    } else {
+        DEBUG('S', "User Program Exit With Status %d\n", status);
+    }
+	...
+        currentThread->Finish(); //结束进程
+    }//if
+}//ControlAddrSpaceWithExit
+```
+
+
+
+#### 多进程实现
+
+> 思路：在progtest.cc中改变进程的启动方式，原来的StartProcess()是启动单进程，自己新增一个函数，同时运行多个进程
+
+- １．为了方便查看内存空间的当前状态，新增一个函数，输出地址空间的状态
+
+```c++
+//addrspace.h
+//Lab3: print out address space-specific
+void PrintState();
+
+//addrspace.cc
+void AddrSpace::PrintState()
+{
+    printf("======== addrspace information ==========\n");
+    printf("numPages = %d\n", numPages);
+    printf("VPN\tPPN\tvalid\treadOnly\tuse\tdirty\n");
+    for(int i = 0; i < numPages; i++) {
+        printf("%d\t", pageTable[i].virtualPage);
+        printf("%d\t", pageTable[i].physicalPage);
+        printf("%d\t", pageTable[i].valid);
+        printf("%d\t", pageTable[i].readOnly);
+        printf("%d\t", pageTable[i].use);
+        printf("%d\t", pageTable[i].dirty);
+    }
+#ifdef USE_BITMAP
+    DEBUG('M', "Current BitMap: %08X\n", machine->BitMap);
+#endif
+    printf("=========================================\n");
+}
+```
+
+
+
+- 2．在progtest.cc中添加多线程测试函数`MultiThread()` ，通过在main.cc中添加的参数`-X`(大写)运行该程序．
+
+  其中的测试机制为：同时创建两个进程，然后在运行过程中，分别打印出内存当前的状态
+
+```C++
+else if (!strcmp(*argv, "-X")){ //Lab3 Exercise: test MultiThread
+    ASSERT(argc > 1);
+    MultiThread(*(argv + 1)); //第一个参数是nachos
+    argCount = 2;
+}
+```
+
+```C++
+void 
+MultiThread(char *filename)
+{
+    OpenFile *executable = fileSystem->Open(filename);
+
+    if (executable == NULL) {
+        printf("Unable to open file %s\n", filename);
+        return;
+    }
+
+    Thread *t1 = SingleThread(executable, 1); //创建一个进程(progtest.cc)
+    Thread *t2 = SingleThread(executable, 2);
+
+    delete executable;			// close file
+
+    t1->Fork(userThread, (void*)1); //执行该进程(progtest.cc)
+    t2->Fork(userThread, (void*)2);
+
+    currentThread->Yield();  //main Thread yield
+}
+```
+
+- ３．进程切换前清空TLB
+
+```c++
+//addrspace.cc - SaveState() 
+#ifdef USE_TLB // Lab3: 切换进程前，清空TLB
+    DEBUG('T', "Clean up TLB due to Context Switch!\n");
+    for (int i = 0; i < TLBSize; i++) {
+        machine->tlb[i].valid = FALSE;
+    }
+#endif
+```
+
+- ４．测试多线程运行
+
+  使用如下命令运行code/test/中的程序`matmult.cc`，把其中内容修改为如下(原矩阵运算所需内存空间太大，第二个进程会内有空间可用)
+
+```c++
+int main() {
+	int a = 1, b = 2;
+    a = 2;b = 1;
+    Exit(87);
+}
+```
+
+​	运行结果：`#选择对应参数，查看syscall, TLB, thread相关的信息`
+
+```bash
+stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -x ../test/matmult -d STt 
+Creating user program thread 1
+Creating user program thread 2
+Forking thread "User_program_1" with func = 0x804ede0, arg = 1
+Putting thread User_program_1 on ready list.
+Forking thread "User_program_2" with func = 0x804ede0, arg = 2
+Putting thread User_program_2 on ready list.
+Yielding thread "main"
+Putting thread main on ready list.
+Switching from thread "main" to thread "User_program_1"
+Running user program thread 1
+======== addrspace information ==========
+numPages = 11
+VPN	PPN	valid	readOnly	use	dirty
+0	0	1	0	0	0	
+1	1	1	0	0	0	
+2	2	1	0	0	0	
+3	3	1	0	0	0	
+4	4	1	0	0	0	
+5	5	1	0	0	0	
+6	6	1	0	0	0	
+7	7	1	0	0	0	
+8	8	1	0	0	0	
+9	9	1	0	0	0	
+10	10	1	0	0	0	
+=========================================
+TLBSize=4, TLB Miss: 4, TLB Hit: 28, Total Translation: 32, TLB Miss Rate: 12.50%
+User Program Exit With Status 731
+Finishing thread "User_program_1"
+Sleeping thread "User_program_1"
+Switching from thread "User_program_1" to thread "User_program_2"
+Running user program thread 2
+======== addrspace information ==========
+numPages = 11
+VPN	PPN	valid	readOnly	use	dirty
+0	11	1	0	0	0	
+1	12	1	0	0	0	
+2	13	1	0	0	0	
+3	14	1	0	0	0	
+4	15	1	0	0	0	
+5	16	1	0	0	0	
+6	17	1	0	0	0	
+7	18	1	0	0	0	
+8	19	1	0	0	0	
+9	20	1	0	0	0	
+10	21	1	0	0	0	
+=========================================
+TLBSize=4, TLB Miss: 4, TLB Hit: 55, Total Translation: 59, TLB Miss Rate: 6.78%
+User Program Exit With Status 731
+Finishing thread "User_program_2"
+Sleeping thread "User_program_2"
+Switching from thread "User_program_2" to thread "main"
+Now in thread "main"
+Deleting thread "User_program_2"
+Finishing thread "main"
+Sleeping thread "main"
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 104, idle 0, system 60, user 44
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+```
+
+由上面输出信息可以看出，两个进程分别进行了创建，运行，切换，并输出了对应的内存空间占用情况，最后返回`main`进程，退出程序；即可证明系统已经可支持多用户进程运行！
 
 
 
@@ -685,7 +994,7 @@ from the comments: 一个运行用户程序的进程是有两组寄存器的，�
 
 > 基于TLB机制的异常处理和页面替换算法的实践，实现缺页中断处理（注意！TLB机制的异常处理是将内存中已有的页面调入TLB，而此处的缺页中断处理则是从磁盘中调入新的页面到内存）、页面替换算法等。
 
-
+需要实现虚拟啊！
 
 
 
@@ -729,19 +1038,25 @@ from the comments: 一个运行用户程序的进程是有两组寄存器的，�
 
 ### 第三部分 Lazy-loading
 
-#### Exercise 7 按需调页
+### Exercise 7 按需调页
 
 > 我们已经知道，Nachos系统为用户程序分配内存必须在用户程序载入内存时一次性完成，故此，系统能够运行的用户程序的大小被严格限制在4KB以下。请实现Lazy-loading的内存分配算法，使得当且仅当程序运行过程中缺页中断发生时，才会将所需的页面从磁盘调入内存。
 
 
 
+
+
+
+
+
+
 ### 第四部分 Challenges
 
-#### Challenge 1  实现SUSPENDED状态
+### Challenge 1  实现SUSPENDED状态
 
 > 为线程增加挂起SUSPENDED状态，并在已完成的文件系统和内存管理功能的基础之上，实现线程在“SUSPENDED”，“READY”和“BLOCKED”状态之间的切换。
 
-#### Challenge 2  实现倒排页表
+### Challenge 2  实现倒排页表
 
 > 多级页表的缺陷在于页表的大小与虚拟地址空间的大小成正比，为了节省物理内存在页表存储上的消耗，请在Nachos系统中实现倒排页表。  
 

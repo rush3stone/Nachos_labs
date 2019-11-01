@@ -72,23 +72,11 @@ ExceptionHandler(ExceptionType which)
             PrintTLBStatus(); // TLB Hit Rate
             DEBUG('a', "Shutdown, initiated by user program.\n");
             interrupt->Halt();
+        }else if(type == SC_Exit) {
+            ControlAddrSpaceWithExit(type);
         }
         //其他syscall后补
 
-        //Lab3 Exercise 4 BitMap
-        if(type == SC_Exit) {
-#ifdef USER_PROGRAM
-            if (currentThread->space != NULL) {
-#if USE_BITMAP
-                machine->FreeMem();
-#endif
-                delete currentThread->space;
-                currentThread->space = NULL;
-            }
-#endif // USER_PROGRAM
-
-            currentThread->Finish();
-        }
 
         IncrementPCRegs(); //避免进入无限循环
                     //(系统调用是一种异常，但是发生异常时Nachos的PC不自增，这样就会一直执行此syscall)
@@ -99,6 +87,37 @@ ExceptionHandler(ExceptionType which)
     ASSERT(FALSE);
 
 }
+
+//--------------------------------------------------------------------------
+//Exit syscall
+void ControlAddrSpaceWithExit(int type) {
+    if(type == SC_Exit) {
+        
+        PrintTLBStatus(); //Print out TLB current status
+
+        //由line36注释：4号寄存器保存传入的第一个参数，对于Exit来说，正常退出，会穿回状态０
+        int status = machine->ReadRegister(4);
+        // currentThread->setExitStatus(status);   //
+        if(status == 0) {
+            DEBUG('S', "User Program Exit Correctly(status 0)\n");
+        } else {
+            DEBUG('S', "User Program Exit With Status %d\n", status);
+        }
+
+#ifdef USER_PROGRAM
+        if (currentThread->space != NULL) {
+#if USE_BITMAP
+            machine->FreeMem();  // For lab3 Exercise4 BitMap
+#endif
+            delete currentThread->space; //释放内存空间
+            currentThread->space = NULL; 
+        }
+#endif // USER_PROGRAM
+        currentThread->Finish();
+    }//if
+}//ControlAddrSpaceWithExit
+
+
 
 //----------------------------- Lab3 Exercise2 & 3 --------------------------
 
@@ -115,6 +134,7 @@ PrintTLBStatus(){
             TLBSize, TLBMissCount, translateCount-TLBMissCount, translateCount, (double)(TLBMissCount*100)/(translateCount));
 #endif
 }
+
 
 int TLBreplaceIdx = 0; //TLB pointer, for TLB update 
 
@@ -198,7 +218,8 @@ PageFaultHandler(int vpn) {
 //  Thus, when invoking a system call, we need to advance the program
 //  counter. Or it will cause the infinity loop.
 //----------------------------------------------------------------------
-
+// lines14-15: Don't forget to increment the pc before returning. (Or else you'll
+// loop making the same system call forever!)
 void IncrementPCRegs(void) {
     // Debug usage
     machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));

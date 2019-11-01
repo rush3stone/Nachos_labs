@@ -88,21 +88,21 @@ AddrSpace::AddrSpace(OpenFile *executable)
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
+	    pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 	
 // Lab3 Exercise 4 BitMap 
 #ifdef USE_BITMAP
-    pageTable[i].physicalPage=machine->AllocateMem();
+        pageTable[i].physicalPage=machine->AllocateMem();
 #else
-    pageTable[i].physicalPage = i;
+        pageTable[i].physicalPage = i;
 #endif    
 
-    pageTable[i].valid = TRUE;
-	pageTable[i].use = FALSE;
-	pageTable[i].dirty = FALSE;
-	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-					// a separate page, we could set its 
-					// pages to be read-only
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
+                        // a separate page, we could set its 
+                        // pages to be read-only
     }
     
 // zero out the entire address space, to zero the unitialized data segment 
@@ -176,7 +176,14 @@ AddrSpace::InitRegisters()
 //----------------------------------------------------------------------
 
 void AddrSpace::SaveState() 
-{}
+{
+#ifdef USE_TLB // Lab3: 切换进程前，清空TLB
+    DEBUG('T', "Clean up TLB due to Context Switch!\n");
+    for (int i = 0; i < TLBSize; i++) {
+        machine->tlb[i].valid = FALSE;
+    }
+#endif
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
@@ -190,4 +197,27 @@ void AddrSpace::RestoreState()
 {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+}
+
+//------------------------------- Lab 3 ----------------------------------
+// Lab3 AddrSpace::PrintState
+// print out all the states of addrspace in order to debug
+//------------------------------------------------------------------------
+void AddrSpace::PrintState()
+{
+    printf("======== addrspace information ==========\n");
+    printf("numPages = %d\n", numPages);
+    printf("VPN\tPPN\tvalid\treadOnly\tuse\tdirty\n");
+    for(int i = 0; i < numPages; i++) {
+        printf("%d\t", pageTable[i].virtualPage);
+        printf("%d\t", pageTable[i].physicalPage);
+        printf("%d\t", pageTable[i].valid);
+        printf("%d\t", pageTable[i].readOnly);
+        printf("%d\t", pageTable[i].use);
+        printf("%d\t\n", pageTable[i].dirty);
+    }
+#ifdef USE_BITMAP
+    DEBUG('M', "Current BitMap: %08X\n", machine->BitMap);
+#endif
+    printf("=========================================\n");
 }

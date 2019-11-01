@@ -154,7 +154,7 @@ Scheduler::Print()
 
 
 //----------------------------------------------------------------------
-// RRHandler
+// Lab2 Challenge: RRHandler
 //
 //	"dummy" is because every interrupt handler takes one argument,
 //		whether it needs it or not.
