@@ -65,8 +65,8 @@ AddrSpace::AddrSpace(OpenFile *executable)
     NoffHeader noffH;
     unsigned int i, size;
 
-    executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
-    if ((noffH.noffMagic != NOFFMAGIC) && 
+    executable->ReadAt((char *)&noffH, sizeof(noffH), 0); //读取程序可执行文件内容
+    if ((noffH.noffMagic != NOFFMAGIC) &&          //改变大小端编码方式
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
@@ -75,36 +75,50 @@ AddrSpace::AddrSpace(OpenFile *executable)
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
-    numPages = divRoundUp(size, PageSize);
+    numPages = divRoundUp(size, PageSize);  //P:compute num of pages need to allocate to this thread
     size = numPages * PageSize;
 
+#ifndef DEMAND_PAGING //alert: not define
     ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
+#else
+    // Create a virtual memory with the size that the executable file need.d
+    DEBUG('a', "Demand paging: creating virtual memory!\n");
+    bool success_create_vm = fileSystem->Create("VirtualMemory", size);
+#endif
 
-    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-					numPages, size);
+
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	    pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	
-// Lab3 Exercise 4 BitMap 
+
+#ifndef DEMAND_PAGING	// Alert: not define
+// Lab3 Exercise-4： BitMap 
 #ifdef USE_BITMAP
         pageTable[i].physicalPage=machine->AllocateMem();
 #else
         pageTable[i].physicalPage = i;
-#endif    
-
+#endif //BITMAP 
         pageTable[i].valid = TRUE;
+#else //DEMAND_PAGING
+        pageTable[i].valid = FALSE;  //Lab3 Ex6: Virtual Memory
+#endif //DEMAND_PAGING       
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
         pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
                         // a separate page, we could set its 
                         // pages to be read-only
-    }
-    
+    }//for
+
+#if USE_BITMAP && !DEMAND_PAGING
+    DEBUG('M', "Bitmap after allocate: %08X\n", machine->BitMap);
+#endif // DEMAND_PAGING
+
+#ifndef DEMAND_PAGING
+
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
     bzero(machine->mainMemory, size);
@@ -123,6 +137,38 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			noffH.initData.size, noffH.initData.inFileAddr);
     }
 
+#else //use DEMAND_PAGING
+//Lab6 Ex-6&7
+// 清空整个地址空间（包括未初始化的部分，和栈区）
+    bzero(machine->mainMemory, MemorySize);
+
+    DEBUG('a', "Demand Paging: copy executable to virtual memory!");
+
+    OpenFile *vm = fileSystem->Open("VirtualMemory");
+    char* tempVirtualMem;
+    tempVirtualMem = new char[size];
+    for(int i = 0; i < size; i++)
+        tempVirtualMem[i] = 0;
+
+// then, copy in the code and data segments into memory
+    if (noffH.code.size > 0) {
+        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+			noffH.code.virtualAddr, noffH.code.size);
+        executable->ReadAt(&(tempVirtualMem[noffH.code.virtualAddr]),   // Lab6
+                           noffH.code.size, noffH.code.inFileAddr);
+        vm->WriteAt(&(tempVirtualMem[noffH.code.virtualAddr]),          // Lab6
+                    noffH.code.size, noffH.code.virtualAddr*PageSize);        
+    }
+    if (noffH.initData.size > 0) {
+        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
+			noffH.initData.virtualAddr, noffH.initData.size);
+        executable->ReadAt(&(tempVirtualMem[noffH.initData.virtualAddr]),   // Lab6
+                           noffH.initData.size, noffH.initData.inFileAddr);
+        vm->WriteAt(&(tempVirtualMem[noffH.initData.virtualAddr]),          // Lab6
+                    noffH.initData.size, noffH.initData.virtualAddr*PageSize);
+    }
+    delete vm; //close file
+#endif    
 }
 
 //----------------------------------------------------------------------

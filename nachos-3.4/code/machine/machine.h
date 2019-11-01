@@ -182,14 +182,14 @@ class Machine {
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
-//-------- Exercise 4 BitMap--------------------
+//------------------- Exercise 4 BitMap ----------------------------------------
 #ifdef USER_PROGRAM
 		unsigned int BitMap;
 
 		int AllocateMem();
 		void FreeMem();
 #endif
-
+//-------------------------------------------------------------------------------
   private:
     bool singleStep;		// drop back into the debugger after each
 				// simulated instruction

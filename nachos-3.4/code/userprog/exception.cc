@@ -88,7 +88,7 @@ ExceptionHandler(ExceptionType which)
 
 }
 
-//--------------------------------------------------------------------------
+//-------------------------------Exit syscall----------------------------------
 //Exit syscall
 void ControlAddrSpaceWithExit(int type) {
     if(type == SC_Exit) {
@@ -118,13 +118,11 @@ void ControlAddrSpaceWithExit(int type) {
 }//ControlAddrSpaceWithExit
 
 
-
 //----------------------------- Lab3 Exercise2 & 3 --------------------------
 
 // choose one from below methods
 // #define TLB_FIFO TRUE
 #define TLB_CLOCK TRUE  
-
 
 //print out TLB Miss Rate
 void
@@ -145,7 +143,7 @@ TLBHandler(int VirtAddr) {
     //获取页面内容，TLB更新在下面用#ifdef操作
     TranslationEntry phyPage = machine->pageTable[vpn];
     if(!phyPage.valid){  //Lab3 Ex6 缺页中断
-        DEBUG('m', "====> Page Miss\n"); //标记为'm'
+        DEBUG('m', "====> Truely Page Fault\n"); //标记为'm'
         phyPage = PageFaultHandler(vpn); 
     }
 
@@ -203,12 +201,66 @@ TLBasClock(TranslationEntry page) {
 }
 #endif
 
+//--------------------------------------------------------------------------
+// Lab3 Exercise-7 按需调页
+//　先找未修改的页面，若找到则直接替换
+// 若未找到，则选择第一个已修改页面，置换，并写回磁盘；
+//-------------------------------------------------------------------------
+int 
+DemandPageReplacement(int vpn){
+    int pageFrame = -1;
+    for(int selectVPN = 0; selectVPN < machine->pageTableSize; selectVPN++){
+        if(machine->pageTable[selectVPN].valid) { 
+            if(!(machine->pageTable[selectVPN].use)) { //未修改
+                pageFrame = machine->pageTable[selectVPN].physicalPage; //替换
+                break;
+            }
+        }
+    }//for
+    if(pageFrame == -1){
+        for (int replaced_vpn = 0; replaced_vpn < machine->pageTableSize, replaced_vpn != vpn; replaced_vpn++) {
+            if (machine->pageTable[replaced_vpn].valid) {
+                machine->pageTable[replaced_vpn].valid = FALSE;
+                pageFrame = machine->pageTable[replaced_vpn].physicalPage;
+
+                // 写回磁盘
+                OpenFile *vm = fileSystem->Open("VirtualMemory");
+                vm->WriteAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, replaced_vpn*PageSize);
+                delete vm; // close file
+                break;
+            }
+        }
+    }//if
+    return pageFrame;
+}//DemandPageReplacement
 
 
-// Lab3 Exercise6 缺页中断
+//------------------------------------------------------------------------------------
+// Lab3 Exercise-6 缺页中断
+//----------------------------------------------------------------------------------
 TranslationEntry
 PageFaultHandler(int vpn) {
-    
+    //查看内存有空页
+    int emptyPageFrame = machine->AllocateMem();
+    //调页
+    if(emptyPageFrame == -1){
+        emptyPageFrame = DemandPageReplacement(vpn);
+    }
+    machine->pageTable[vpn].physicalPage = emptyPageFrame;
+
+    // 从虚拟内存加载页面
+    DEBUG('a', "Demand paging: loading page from virtual memory!\n");
+    OpenFile *vm = fileSystem->Open("VirtualMemory"); //VirtualMemory(文件)定义在addrspace.cc中
+    vm->ReadAt(&(machine->mainMemory[emptyPageFrame*PageSize]), PageSize, vpn*PageSize);
+    delete vm; // close the file
+
+    // 更新页面的标记
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].use = FALSE;
+    machine->pageTable[vpn].dirty = FALSE;
+    machine->pageTable[vpn].readOnly = FALSE;
+
+    currentThread->space->PrintState(); // 输出内存情况（BitMap）
 }
 
 //----------------------------------------------------------------------

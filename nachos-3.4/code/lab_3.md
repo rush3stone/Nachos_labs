@@ -287,26 +287,37 @@
 
 - **userprog/addrSpace.h(cc)**
 
-  - **AddrSpace()**: 创建地址空间，加载程序，初始化上下文
+  - **AddrSpace()**: 创建地址空间，加载程序，初始化上下文 (set up the translation from program memory to physical memory. )
 
-    - 判断需要的地址空间大小，若大于整个物理空间则报错 (74-87)
+    - 读取源代码文件，并进行大小端不同编码方式的转换(lines 68-72)
+
+      >  Comments:  "executable" is the file containing the object code to load into memory
+
+    - 判断需要的地址空间大小，若大于整个物理空间则报错 (lines 74-87)
 
       因此也就说明，所有页都在内存中，当进行虚拟地址转换且搜索页表时，不会发生`PageFault`；当然，由于Nachos下`TLB`搜索还是有可能报`PageFault`的．
 
-    - 初始化页表项 (88-99)
+      > Comments: For now, this is really simple (1:1), since we are only uniprogramming, and we have a single unsegmented page table
 
-    - 在把新的进程的code&data放入内存之前，会把所有内存清空（所以表示每一时刻只有单线程存在于内存？）　(103)
+    - 初始化页表项 (lines 88-99)
 
-    ```c++
-    bzero(machine->mainMemory, size);
-    ```
+      在把新的进程的code&data放入内存之前，会把所有内存清空（所以表示每一时刻只有单线程存在于内存？）(line 103)
 
-    - 把代码和初始化数据复制入内存（未初始化数据默认赋值为0即可）（二进制文件）
+      ```c++
+      bzero(machine->mainMemory, size);
+      ```
 
-    ```C++
-    if (noffH.code.size > 0) {...}
-    if (noffH.initData.size > 0) {...}
-    ```
+      
+
+    - 把代码和初始化数据复制入内存（未初始化数据默认赋值为0即可）(lines112-124)
+
+      ```C++
+      if (noffH.code.size > 0) {...}
+      if (noffH.initData.size > 0) {...}
+      ```
+
+      
+
 
   - 下面的InitRegister, SaveState, RestoreState分别进行上下文的初始化，保存和重新加载
 
@@ -583,7 +594,7 @@ Machine halting!
 
 
 
-### Exercise 4 内存全局管理数据结构
+### Exercise 4 内存全局管理数据结构 (BitMap)
 
 > Task: 设计并实现一个全局性的数据结构（如空闲链表、位图等）来进行内存的分配和回收，并记录当前内存的使用状态。
 
@@ -705,7 +716,7 @@ Cleaning up...
 
 ### Exercise 5 多线程支持
 
-> 目前Nachos系统的内存中同时只能存在一个线程，我们希望打破这种限制，使得Nachos系统支持多个线程同时存在于内存中。
+> Task：目前Nachos系统的内存中同时只能存在一个线程，我们希望打破这种限制，使得Nachos系统支持多个线程同时存在于内存中。
 
 保存上下文切换的数据值，具体定义在`thread.h`的(143-155)
 
@@ -990,51 +1001,96 @@ Cleaning up...
 
 
 
+**遗留问题：**
+
+> 为什么空间分配是顺序分配的，按照BitMap机制的话，应该是从0号页逐个搜索，找到空页就分配才对啊！由于进程１结束，那进程２应该直接从０开始呀？
+>
+> 目前思路：是因为父进程main还没有回收它的内存空间吗？
+
+
+
 ### Excercise 6 缺页中断支持
 
-> 基于TLB机制的异常处理和页面替换算法的实践，实现缺页中断处理（注意！TLB机制的异常处理是将内存中已有的页面调入TLB，而此处的缺页中断处理则是从磁盘中调入新的页面到内存）、页面替换算法等。
+> Task：基于TLB机制的异常处理和页面替换算法的实践，实现缺页中断处理（注意！TLB机制的异常处理是将内存中已有的页面调入TLB，而此处的缺页中断处理则是从磁盘中调入新的页面到内存）、页面替换算法等。
 
-需要实现虚拟啊！
+**思路：**　所谓缺页中断，即所需页在磁盘而非内存中，因此需要实现虚拟内存．用一个文件模拟虚拟内存，初始化内存空间时，写入虚拟内存（该文件）而非真实物理内存．
 
+#### (一)用文件模拟硬盘
 
+**修改addrspace.cc**
 
-**2、增加Thread类的新方法TS():** 
-　在thread.cc中类似与Fork和Yield等函数接口，增加TS()接口，其内部遍历所有进程标志，输出编号已经被分配进程的状态；
+- **创建所需大小的虚拟内存**　(用文件模拟)
 
 ```C++
-    //　Lab1: EX4
-    //----------------------------------------------------------------------
-    // Thread::TS
-    // 	print infomation of all threads
-    //----------------------------------------------------------------------
-    void
-    Thread::TS() {
-        const char* TSToString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
-        printf("Name\tUId\tTId\tThreadStatus\n");
-        for(int i = 0; i < maxThreadNum; i++) {
-            if(tidFlag[i])
-                printf("%s\t%d\t%d\t%s\n", tidPointer[i]->getName(), tidPointer[i]->getUserId(), tidPointer[i]->getThreadId(), TSToString[tidPointer[i]->getThreadStatus()]);
-        }
+ //---Lab3 Exercise 6&7
+// Virutal Memory: 按照executable所需的size创建磁盘（文件模拟）
+DEBUG('a', "Demand paging: creating virtual memory!\n");
+bool success_create_vm = fileSystem->Create("VirtualMemory", size);
+ASSERT(success_create_vm);
+
+//注：不要再分配物理内存，更改为FALSE
+pageTable[i].valid = FALSE;  //Lab3 Ex6: Virtual Memory
+```
+
+- **把执行文件的代码和数据复制给虚拟内存**（而非物理内存）
+
+```c++
+OpenFile *vm = fileSystem->Open("VirtualMemory");
+char* tempVirtualMem;
+tempVirtualMem = new char[size];
+for(int i = 0; i < size; i++)
+	tempVirtualMem[i] = 0;
+
+// then, copy in the code and data segments into memory
+if (noffH.code.size > 0) {
+    DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+          noffH.code.virtualAddr, noffH.code.size);
+    //写入虚拟内存而非物理内存
+    executable->ReadAt(&(tempVirtualMem[noffH.code.virtualAddr]), 
+                       noffH.code.size, noffH.code.inFileAddr);
+    vm->WriteAt(&(tempVirtualMem[noffH.code.virtualAddr]),
+                noffH.code.size, noffH.code.virtualAddr*PageSize);   //注意写入位置的不同，因为在虚拟内存中没有Header,只有code和data部分     
+}
+//data部分同上
+```
+
+
+
+#### (二) 实现缺页中断
+
+衔接Exercise 2的内容，当不仅TLB失效，页表也失效时，需要从磁盘调页，由`exception.cc`中的`PageFaultException()`实现
+
+```c++
+// Lab3 Exercise-6 缺页中断
+TranslationEntry
+PageFaultHandler(int vpn) {
+    //查看内存有空页
+    int emptyPageFrame = machine->AllocateMem();
+    //调页
+    if(emptyPageFrame == -1){
+        emptyPageFrame = DemandPageReplacement(vpn);
     }
+    machine->pageTable[vpn].physicalPage = emptyPageFrame;
+
+    // 从虚拟内存加载页面
+    DEBUG('a', "Demand paging: loading page from virtual memory!\n");
+    OpenFile *vm = fileSystem->Open("VirtualMemory"); //VirtualMemory(文件)定义在addrspace.cc中
+    vm->ReadAt(&(machine->mainMemory[emptyPageFrame*PageSize]), PageSize, vpn*PageSize);
+    delete vm; // close the file
+
+    // 更新页面的标记
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].use = FALSE;
+    machine->pageTable[vpn].dirty = FALSE;
+    machine->pageTable[vpn].readOnly = FALSE;
+
+    currentThread->space->PrintState(); // 输出内存情况（BitMap）
+}
 ```
 
-**代码测试：**
-　分别对创建三个进程并执行Fork，对其中两个进程分别执行Yield(让出CPU资源),Sleep(阻塞)和Finish(结束)，另外创建一个进程但不执行Fork；过程中每次都打印出ReadyList，最后输出所有进程状态，正确情况应该是包含主进程在的五个进程，一个进程销毁，其他三个进程分别处于RUNNING, READY, BLOCKED和JUST_CREATED状态；
-
-```bash
-    ---------- Threads Status --------------
-    Name	UId	TId	ThreadStatus
-    main	0	0	RUNNING
-    t1	0	1	READY
-    t2	0	2	BLOCKED
-    t4	0	4	JUST_CREATED
-    ----------- End ------------------------
-    No threads ready or runnable, and no pending interrupts.
-    Assuming the program completed.
-    Machine halting!
-```
 
 
+---
 
 ### 第三部分 Lazy-loading
 
@@ -1042,11 +1098,100 @@ Cleaning up...
 
 > 我们已经知道，Nachos系统为用户程序分配内存必须在用户程序载入内存时一次性完成，故此，系统能够运行的用户程序的大小被严格限制在4KB以下。请实现Lazy-loading的内存分配算法，使得当且仅当程序运行过程中缺页中断发生时，才会将所需的页面从磁盘调入内存。
 
+**原理理解：**
 
+其实总的物理页还就是32个128B的页面；本进程的所有页面都已加载在虚拟内存里；所谓缺页，就是在物理内存中找不到该页，那么就从其中选择一页置换出去，把缺页从磁盘中加载进来；若置换出的页
 
+　　　　　　　**模拟的是磁盘还是虚拟内存啊**
 
+**解决思路：**
 
+- 查找物理内存中未被修改的页面，找到一个，直接替换；
+- 若没有未修改页面，则选择第一个已修改页进行替换，并把它写回磁盘；
+- （使用宏定义使得按需调页与之前的Exercise共存）
 
+```c++
+int 
+DemandPageReplacement(int vpn){
+    int pageFrame = -1;
+    for(int selectVPN = 0; selectVPN < machine->pageTableSize; selectVPN++){
+        if(machine->pageTable[selectVPN].valie) { 
+            if(!(machine->pageTable[selectVPN].use)) { //未修改
+                pageFrame = machine->pageTable[selectVPN].physicalPage; //替换
+                break;
+            }
+        }
+    }//for
+    if(pageFrame == -1){
+        for (int replaced_vpn = 0; replaced_vpn < machine->pageTableSize, replaced_vpn != vpn; replaced_vpn++) {
+            if (machine->pageTable[replaced_vpn].valid) {
+                machine->pageTable[replaced_vpn].valid = FALSE;
+                pageFrame = machine->pageTable[replaced_vpn].physicalPage;
+
+                // 写回磁盘
+                OpenFile *vm = fileSystem->Open("VirtualMemory");
+                vm->WriteAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, replaced_vpn*PageSize);
+                delete vm; // close file
+                break;
+            }
+        }
+    }//if
+    return pageFrame;
+}//DemandPageReplacement
+```
+
+**代码测试：**
+
+```bash
+stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -X ../test/matmult -d TM
+Creating user program thread 1
+Creating user program thread 2
+Running user program thread 1
+======== addrspace information ==========
+numPages = 15
+VPN	PPN	valid	readOnly	use	dirty
+0	0	1	0	0	0	
+1	1	1	0	0	0	
+2	2	1	0	0	0	
+3	3	1	0	0	0	
+4	4	1	0	0	0	
+5	5	1	0	0	0	
+6	6	1	0	0	0	
+7	7	1	0	0	0	
+8	8	1	0	0	0	
+9	9	1	0	0	0	
+10	10	1	0	0	0	
+11	11	1	0	0	0	
+12	12	1	0	0	0	
+13	13	1	0	0	0	
+14	14	1	0	0	0	
+=========================================
+TLBSize=4, TLB Miss: 15, TLB Hit: 233, Total Translation: 248, TLB Miss Rate: 6.05%
+Running user program thread 2
+======== addrspace information ==========
+numPages = 15
+VPN	PPN	valid	readOnly	use	dirty
+0	0	1	0	0	0	
+1	1	1	0	0	0	
+2	2	1	0	0	0	
+3	3	1	0	0	0	
+4	4	1	0	0	0	
+5	5	1	0	0	0	
+6	6	1	0	0	0	
+7	7	1	0	0	0	
+8	8	1	0	0	0	
+9	9	1	0	0	0	
+10	10	1	0	0	0	
+11	11	1	0	0	0	
+12	12	1	0	0	0	
+13	13	1	0	0	0	
+14	14	1	0	0	0	
+=========================================
+TLBSize=4, TLB Miss: 29, TLB Hit: 466, Total Translation: 495, TLB Miss Rate: 5.86%
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+```
 
 
 
@@ -1062,9 +1207,13 @@ Cleaning up...
 
 
 
+
+
+---
+
 ## 内容三：遇到的困难以及解决办法
 
-#### 困难：多线程
+#### 困难：理解多线程问题
 
 
 
@@ -1072,7 +1221,9 @@ Cleaning up...
 
 ## 内容四：收获及感想
 
-- 
+这次主题是微电子技术，老师梳理了整个行业的发展历程和目前情况，看着老师罗列的全球前几大半导体公司，真是让人唏嘘，除了海思能勉强跻身之外，其他基本都是外国公司．作为整个信息社会的基石，不管是芯片还是集成电路，国内的发展都与世界陷先进水平有不小差距，我们原本希望真的可以建立一个全球化的市场，各国分工合作，各司其职，但从去年的中兴事件到今年以来贸易科技战的诸多事情，让大家深刻明白，核心技术一定要把握在自己手里，当任何事情真的上升到国家层面时，连谷歌这样被大家追捧了许多年的象征着科技自由的企业都是不自由的！
+
+所幸，国内这方面虽然差距明显，但并不是遥不可及，科创板上线之后，多家的集成电路创业公司也是登上新闻版面，同时国家也出台各项优惠政策，鼓励资源更多流向硬件行业，所以虽然目前硬件行业整体的待遇，发展都不如软件行业，人才也更多地流向软件方向，但我相信我们自己的半导体产业一定会越来越好的．
 
 
 
