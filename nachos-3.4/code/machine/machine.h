@@ -26,6 +26,9 @@
 #include "translate.h"
 #include "disk.h"
 
+// Lab3 Ex4: BitMap
+#include "bitmap.h"
+
 // Definitions related to the size, and format of user memory
 
 #define PageSize 	SectorSize 	// set the page size equal to
@@ -182,12 +185,9 @@ class Machine {
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
-//------------------- Exercise 4 BitMap ----------------------------------------
-#ifdef USER_PROGRAM
-		unsigned int BitMap;
-
-		int AllocateMem();
-		void FreeMem();
+//------------------- Lab3: Ex 4 BitMap ----------------------------------------
+#ifdef USE_BITMAP
+		BitMap *bitmap1;  //for lab3_Ex4
 #endif
 //-------------------------------------------------------------------------------
   private:
@@ -207,7 +207,7 @@ void TLBHandler(int virtAddr);
 void TLBasFIFO(TranslationEntry page);
 void TLBasClock(TranslationEntry page);
 
-// Exercise 6
+// Lab 3: Ex6 PageFault
 TranslationEntry PageFaultHandler(int virtAddr);
 
 // Lab3: get TLB Hit Rate
@@ -216,6 +216,7 @@ extern int translateCount;
 void PrintTLBStatus(void);
 
 // -----------------------------------------------------------
+
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  If the host machine

@@ -21,7 +21,7 @@ BitMap::BitMap(int nitems)
 { 
     numBits = nitems;
     numWords = divRoundUp(numBits, BitsInWord);
-    map = new unsigned int[numWords];
+    map = new unsigned int[numWords];  //pyq: the size of (unsigned int) is wordSize(32bit=4B)
     for (int i = 0; i < numBits; i++) 
         Clear(i);
 }
@@ -48,6 +48,7 @@ BitMap::Mark(int which)
 { 
     ASSERT(which >= 0 && which < numBits);
     map[which / BitsInWord] |= 1 << (which % BitsInWord);
+    DEBUG('B', "Set page %d in BitMap.\n", which);
 }
     
 //----------------------------------------------------------------------
@@ -62,6 +63,7 @@ BitMap::Clear(int which)
 {
     ASSERT(which >= 0 && which < numBits);
     map[which / BitsInWord] &= ~(1 << (which % BitsInWord));
+    DEBUG('B', "Clear page %d in BitMap.\n", which);
 }
 
 //----------------------------------------------------------------------
@@ -77,9 +79,9 @@ BitMap::Test(int which)
     ASSERT(which >= 0 && which < numBits);
     
     if (map[which / BitsInWord] & (1 << (which % BitsInWord)))
-	return TRUE;
+	    return TRUE;
     else
-	return FALSE;
+	    return FALSE;
 }
 
 //----------------------------------------------------------------------
@@ -94,11 +96,13 @@ BitMap::Test(int which)
 int 
 BitMap::Find() 
 {
-    for (int i = 0; i < numBits; i++)
-	if (!Test(i)) {
-	    Mark(i);
-	    return i;
-	}
+    for (int i = 0; i < numBits; i++) {
+        if (!Test(i)) {
+            Mark(i);
+            return i;
+        }
+    }
+    DEBUG('B', "No empty page Found in BitMap.\n");
     return -1;
 }
 
@@ -114,7 +118,7 @@ BitMap::NumClear()
     int count = 0;
 
     for (int i = 0; i < numBits; i++)
-	if (!Test(i)) count++;
+	    if (!Test(i)) count++;
     return count;
 }
 
@@ -131,9 +135,9 @@ BitMap::Print()
 {
     printf("Bitmap set:\n"); 
     for (int i = 0; i < numBits; i++)
-	if (Test(i))
-	    printf("%d, ", i);
-    printf("\n"); 
+	    if (Test(i))
+	        printf("%d, ", i);
+    printf("\n-----------------------------------------\n"); 
 }
 
 // These aren't needed until the FILESYS assignment
@@ -162,4 +166,16 @@ void
 BitMap::WriteBack(OpenFile *file)
 {
    file->WriteAt((char *)map, numWords * sizeof(unsigned), 0);
+}
+
+
+//------------------------------------------------------------------------
+// BitMap::AllClear
+// Clear all the bits of BitMap
+//------------------------------------------------------------------------
+void
+BitMap::AllClear()
+{
+    for(int i = 0; i < numBits; i++)
+        Clear(i);
 }

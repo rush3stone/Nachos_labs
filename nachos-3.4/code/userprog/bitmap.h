@@ -46,6 +46,9 @@ class BitMap {
     int NumClear();		// Return the number of clear bits
 
     void Print();		// Print contents of bitmap
+
+    //PYQ:
+    void AllClear();  // Clear all bits
     
     // These aren't needed until FILESYS, when we will need to read and 
     // write the bitmap to a file

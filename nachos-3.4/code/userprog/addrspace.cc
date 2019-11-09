@@ -65,47 +65,37 @@ AddrSpace::AddrSpace(OpenFile *executable)
     NoffHeader noffH;
     unsigned int i, size;
 
-    executable->ReadAt((char *)&noffH, sizeof(noffH), 0); //读取程序可执行文件内容
-    if ((noffH.noffMagic != NOFFMAGIC) &&          //改变大小端编码方式
+    executable->ReadAt((char *)&noffH, sizeof(noffH), 0); //读取程序(可执行文件)的内容
+    if ((noffH.noffMagic != NOFFMAGIC) &&          //修正大小端编码方式
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-// how big is address space?
+    // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);  //P:compute num of pages need to allocate to this thread
     size = numPages * PageSize;
 
-#ifndef DEMAND_PAGING //alert: not define
     ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
-#else
-    // Create a virtual memory with the size that the executable file need.d
-    DEBUG('a', "Demand paging: creating virtual memory!\n");
-    bool success_create_vm = fileSystem->Create("VirtualMemory", size);
-#endif
 
-
-// first, set up the translation 
+    // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
-    for (i = 0; i < numPages; i++) {
+    for (i = 0; i < numPages; i++) 
+    {
 	    pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 
-#ifndef DEMAND_PAGING	// Alert: not define
-// Lab3 Exercise-4： BitMap 
-#ifdef USE_BITMAP
-        pageTable[i].physicalPage=machine->AllocateMem();
+#ifdef USE_BITMAP  // Lab3 Exercise-4： BitMap 
+        pageTable[i].physicalPage = machine->bitmap1->Find();
 #else
         pageTable[i].physicalPage = i;
-#endif //BITMAP 
+#endif //end BITMAP 
+
         pageTable[i].valid = TRUE;
-#else //DEMAND_PAGING
-        pageTable[i].valid = FALSE;  //Lab3 Ex6: Virtual Memory
-#endif //DEMAND_PAGING       
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
         pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
@@ -113,17 +103,14 @@ AddrSpace::AddrSpace(OpenFile *executable)
                         // pages to be read-only
     }//for
 
-#if USE_BITMAP && !DEMAND_PAGING
-    DEBUG('M', "Bitmap after allocate: %08X\n", machine->BitMap);
-#endif // DEMAND_PAGING
-
-#ifndef DEMAND_PAGING
-
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
+#ifdef USE_BITMAP
+    machine->bitmap1->Print();
+#endif
+    // zero out the entire address space, to zero the unitialized data segment 
+    // and the stack segment
     bzero(machine->mainMemory, size);
 
-// then, copy in the code and data segments into memory
+    // then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
@@ -135,41 +122,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			noffH.initData.virtualAddr, noffH.initData.size);
         executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
 			noffH.initData.size, noffH.initData.inFileAddr);
-    }
+    }//if
 
-#else //use DEMAND_PAGING
-//Lab6 Ex-6&7
-// 清空整个地址空间（包括未初始化的部分，和栈区）
-    bzero(machine->mainMemory, MemorySize);
-
-    DEBUG('a', "Demand Paging: copy executable to virtual memory!");
-
-    OpenFile *vm = fileSystem->Open("VirtualMemory");
-    char* tempVirtualMem;
-    tempVirtualMem = new char[size];
-    for(int i = 0; i < size; i++)
-        tempVirtualMem[i] = 0;
-
-// then, copy in the code and data segments into memory
-    if (noffH.code.size > 0) {
-        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
-			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(tempVirtualMem[noffH.code.virtualAddr]),   // Lab6
-                           noffH.code.size, noffH.code.inFileAddr);
-        vm->WriteAt(&(tempVirtualMem[noffH.code.virtualAddr]),          // Lab6
-                    noffH.code.size, noffH.code.virtualAddr*PageSize);        
-    }
-    if (noffH.initData.size > 0) {
-        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
-			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(tempVirtualMem[noffH.initData.virtualAddr]),   // Lab6
-                           noffH.initData.size, noffH.initData.inFileAddr);
-        vm->WriteAt(&(tempVirtualMem[noffH.initData.virtualAddr]),          // Lab6
-                    noffH.initData.size, noffH.initData.virtualAddr*PageSize);
-    }
-    delete vm; //close file
-#endif    
-}
+}//AddrSpace
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
@@ -197,7 +152,7 @@ AddrSpace::InitRegisters()
     int i;
 
     for (i = 0; i < NumTotalRegs; i++)
-	machine->WriteRegister(i, 0);
+	    machine->WriteRegister(i, 0);
 
     // Initial program counter -- must be location of "Start"
     machine->WriteRegister(PCReg, 0);	
@@ -223,7 +178,7 @@ AddrSpace::InitRegisters()
 
 void AddrSpace::SaveState() 
 {
-#ifdef USE_TLB // Lab3: 切换进程前，清空TLB
+#ifdef USE_TLB // Lab3: 切换上下文前，清空TLB
     DEBUG('T', "Clean up TLB due to Context Switch!\n");
     for (int i = 0; i < TLBSize; i++) {
         machine->tlb[i].valid = FALSE;
@@ -263,7 +218,7 @@ void AddrSpace::PrintState()
         printf("%d\t\n", pageTable[i].dirty);
     }
 #ifdef USE_BITMAP
-    DEBUG('M', "Current BitMap: %08X\n", machine->BitMap);
+    machine->bitmap1->Print();
 #endif
     printf("=========================================\n");
 }

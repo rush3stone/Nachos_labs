@@ -51,29 +51,28 @@
 void
 ExceptionHandler(ExceptionType which)
 {
-    // Lab3 Exercise2 & 3
+    // Lab3: PageFault
     if(which == PageFaultException) {
         if(machine->tlb==NULL){ //如果TLB为空，说明是页表失效
         //由于Nachos默认会把程序的所有代码和数据都加入内存，所以不会出现查询页表发生PageFault的情况；
             DEBUG('m', "=> Linear page table page fault.\n");
             ASSERT(FALSE); //报错
         }else{//
-            DEBUG('m', "=> TLB Miss, Page Fault.\n");
-            int BadVAddr = machine->ReadRegister(BadVAddrReg);
-            TLBHandler(BadVAddr);
+            DEBUG('T', "=> TLB Miss, Page Fault.\n");
+            int BadVAddr = machine->ReadRegister(BadVAddrReg); //pyq: It has saved in machine.cc/RaiseException()
+            TLBHandler(BadVAddr);   
         }
-        return;
+        return; //处理完，返回
     }
 
-    int type = machine->ReadRegister(2);
-
+    int type = machine->ReadRegister(2); //pyq: Syscall type is saved in number-2 register
     if (which == SyscallException) {
         if(type == SC_Halt){
             PrintTLBStatus(); // TLB Hit Rate
             DEBUG('a', "Shutdown, initiated by user program.\n");
             interrupt->Halt();
         }else if(type == SC_Exit) {
-            ControlAddrSpaceWithExit(type);
+            ControlAddrSpaceWithExit(type); //pyq: handle space problem in a function
         }
         //其他syscall后补
 
@@ -106,8 +105,8 @@ void ControlAddrSpaceWithExit(int type) {
 
 #ifdef USER_PROGRAM
         if (currentThread->space != NULL) {
-#if USE_BITMAP
-            machine->FreeMem();  // For lab3 Exercise4 BitMap
+#if USE_BITMAP 
+            machine->bitmap1->AllClear(); //Lab3 Ex4: BitMap Clear
 #endif
             delete currentThread->space; //释放内存空间
             currentThread->space = NULL; 
@@ -124,7 +123,7 @@ void ControlAddrSpaceWithExit(int type) {
 // #define TLB_FIFO TRUE
 #define TLB_CLOCK TRUE  
 
-//print out TLB Miss Rate
+//---------- print out TLB Miss Rate ---------------------------------
 void
 PrintTLBStatus(){
 #ifdef USE_TLB
@@ -136,6 +135,8 @@ PrintTLBStatus(){
 
 int TLBreplaceIdx = 0; //TLB pointer, for TLB update 
 
+
+//------------ TLB Hanler ---------------------------------------------
 void
 TLBHandler(int VirtAddr) {
     unsigned int vpn;
@@ -144,7 +145,9 @@ TLBHandler(int VirtAddr) {
     TranslationEntry phyPage = machine->pageTable[vpn];
     if(!phyPage.valid){  //Lab3 Ex6 缺页中断
         DEBUG('m', "====> Truely Page Fault\n"); //标记为'm'
+#ifdef USE_BITMAP        
         phyPage = PageFaultHandler(vpn); 
+#endif        
     }
 
 #if TLB_FIFO
@@ -158,7 +161,8 @@ TLBHandler(int VirtAddr) {
 
 }//TLBHandler
 
-// FIFO for TLB update
+
+//---------------Lab3-ex3 FIFO for TLB update ---------------------------
 #ifdef TLB_FIFO
 void
 TLBasFIFO(TranslationEntry page) {
@@ -179,7 +183,7 @@ TLBasFIFO(TranslationEntry page) {
 }    
 #endif
 
-// CLOCK for TLB update
+//--------------Lab3-ex3 CLOCK for TLB update ---------------------------
 #ifdef TLB_CLOCK
 void
 TLBasClock(TranslationEntry page) {
@@ -201,8 +205,9 @@ TLBasClock(TranslationEntry page) {
 }
 #endif
 
+
 //--------------------------------------------------------------------------
-// Lab3 Exercise-7 按需调页
+// Lab3 Ex-7 按需调页
 //　先找未修改的页面，若找到则直接替换
 // 若未找到，则选择第一个已修改页面，置换，并写回磁盘；
 //-------------------------------------------------------------------------
@@ -238,10 +243,11 @@ DemandPageReplacement(int vpn){
 //------------------------------------------------------------------------------------
 // Lab3 Exercise-6 缺页中断
 //----------------------------------------------------------------------------------
+#ifdef USE_BITMAP
 TranslationEntry
 PageFaultHandler(int vpn) {
     //查看内存有空页
-    int emptyPageFrame = machine->AllocateMem();
+    int emptyPageFrame = machine->bitmap1->Find();
     //调页
     if(emptyPageFrame == -1){
         emptyPageFrame = DemandPageReplacement(vpn);
@@ -262,6 +268,7 @@ PageFaultHandler(int vpn) {
 
     currentThread->space->PrintState(); // 输出内存情况（BitMap）
 }
+#endif //end BITMAP
 
 //----------------------------------------------------------------------
 // IncrementPCRegs
@@ -270,15 +277,14 @@ PageFaultHandler(int vpn) {
 //  Thus, when invoking a system call, we need to advance the program
 //  counter. Or it will cause the infinity loop.
 //----------------------------------------------------------------------
-// lines14-15: Don't forget to increment the pc before returning. (Or else you'll
-// loop making the same system call forever!)
+// pyq: comments from lines14-15: Don't forget to increment the pc before returning. 
+// (Or else you'll loop making the same system call forever!)
 void IncrementPCRegs(void) {
-    // Debug usage
-    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
-
+    // Debug usage (pyq: update previous, current and next PC)
+    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg)); 
     // Advance program counter
     machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
-    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4); 
 }
 
 //--------------------------------------------------------------------------
