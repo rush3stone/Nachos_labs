@@ -85,9 +85,11 @@ ConsoleTest (char *in, char *out)
 
 //------------------------- Lab4 Exercise 5: MultiThread ---------------------------
 void
-userThread(int num)
+userThreadExecve(int num)
 {
     printf("Running user program thread %d\n", num);
+    currentThread->TS();
+
     currentThread->space->InitRegisters();		// set the initial register values
     currentThread->space->RestoreState();		// load page table register
     currentThread->space->PrintState();         // print out current addrspace state
@@ -107,9 +109,10 @@ Thread
     printf("Creating user program thread %d\n", num);
 
     char ThreadName[20];
-    sprintf(ThreadName, "User_program_%d", num); //name the thread with num
+    sprintf(ThreadName, "userT%d", num); //name the thread with num
     Thread *newThread = new Thread(strdup(ThreadName), -1); //比main进程的优先级还要高
-    
+    // Thread *newThread = new Thread(ThreadName, -1);
+
     AddrSpace *space;
     space = new AddrSpace(executable);   
     newThread->space = space;
@@ -132,8 +135,8 @@ MultiThread(char *filename)
 
     delete executable;			// close file
 
-    t1->Fork(userThread, (void*)1); //
-    t2->Fork(userThread, (void*)2);
+    t1->Fork(userThreadExecve, (void*)1); 
+    t2->Fork(userThreadExecve, (void*)2); //
 
     currentThread->Yield();  //main Thread yield
 }

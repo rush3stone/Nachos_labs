@@ -153,7 +153,7 @@ class Thread {
 
     AddrSpace *space;			// User code this thread is running.
 #endif
-};
+}; //Thread
 
 // Magical machine-dependent routines, defined in switch.s
 

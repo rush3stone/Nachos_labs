@@ -70,7 +70,7 @@ matmult: matmult.o start.o
 	$(LD) $(LDFLAGS) start.o matmult.o -o matmult.coff
 	../bin/coff2noff matmult.coff matmult
 
-# Lab3 Virtual Memory
+# Lab3-Ex5 MultiThread
 pyq_test.o: pyq_test.c
 	$(CC) $(CFLAGS) -c pyq_test.c
 pyq_test: pyq_test.o start.o

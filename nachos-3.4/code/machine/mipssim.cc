@@ -112,7 +112,7 @@ Machine::OneInstruction(Instruction *instr)
        printf(str->string, TypeToReg(str->args[0], instr), 
 								TypeToReg(str->args[1], instr), TypeToReg(str->args[2], instr));
        printf("\n");
-       }
+    }
     
     // Compute next pc, but don't install in case there's an error or branch.
     int pcAfter = registers[NextPCReg] + 4;

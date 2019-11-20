@@ -51,20 +51,21 @@
 void
 ExceptionHandler(ExceptionType which)
 {
-    // Lab3: PageFault
+    //--------------- Lab3: PageFault ---------------------
     if(which == PageFaultException) {
-        if(machine->tlb==NULL){ //如果TLB为空，说明是页表失效
+        if(machine->tlb == NULL){ //pyq:TLB is empty means this exception was caused by PageFault
         //由于Nachos默认会把程序的所有代码和数据都加入内存，所以不会出现查询页表发生PageFault的情况；
             DEBUG('m', "=> Linear page table page fault.\n");
             ASSERT(FALSE); //报错
         }else{//
             DEBUG('T', "=> TLB Miss, Page Fault.\n");
-            int BadVAddr = machine->ReadRegister(BadVAddrReg); //pyq: It has saved in machine.cc/RaiseException()
+            int BadVAddr = machine->ReadRegister(BadVAddrReg); //pyq: It has been saved in machine.cc/RaiseException()
             TLBHandler(BadVAddr);   
         }
         return; //处理完，返回
     }
 
+    //--------------- SysCalls --------------------------------
     int type = machine->ReadRegister(2); //pyq: Syscall type is saved in number-2 register
     if (which == SyscallException) {
         if(type == SC_Halt){
@@ -80,7 +81,7 @@ ExceptionHandler(ExceptionType which)
         IncrementPCRegs(); //避免进入无限循环
                     //(系统调用是一种异常，但是发生异常时Nachos的PC不自增，这样就会一直执行此syscall)
         return;
-    } 
+    }//if-which
 
     printf("Unexpected user mode exception %d %d\n", which, type);
     ASSERT(FALSE);
@@ -94,9 +95,9 @@ void ControlAddrSpaceWithExit(int type) {
         
         PrintTLBStatus(); //Print out TLB current status
 
-        //由line36注释：4号寄存器保存传入的第一个参数，对于Exit来说，正常退出，会穿回状态０
+        //Hints from comments line36：4号寄存器保存传入的第一个参数，对于Exit来说，正常退出，会传回状态０
         int status = machine->ReadRegister(4);
-        // currentThread->setExitStatus(status);   //
+        // currentThread->setExitStatus(status);   //Now we don't have this function
         if(status == 0) {
             DEBUG('S', "User Program Exit Correctly(status 0)\n");
         } else {
@@ -106,7 +107,10 @@ void ControlAddrSpaceWithExit(int type) {
 #ifdef USER_PROGRAM
         if (currentThread->space != NULL) {
 #if USE_BITMAP 
-            machine->bitmap1->AllClear(); //Lab3 Ex4: BitMap Clear
+            // Lab3 Ex4: BitMap Clear
+            // If there are more than one thread, you should only clear your bits, not all!
+            // Add a function:clearBitMap() to addrspace for clear
+            currentThread->space->ClearBitMap();
 #endif
             delete currentThread->space; //释放内存空间
             currentThread->space = NULL; 
@@ -114,6 +118,7 @@ void ControlAddrSpaceWithExit(int type) {
 #endif // USER_PROGRAM
         currentThread->Finish();
     }//if
+
 }//ControlAddrSpaceWithExit
 
 

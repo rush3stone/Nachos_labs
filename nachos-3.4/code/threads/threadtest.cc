@@ -12,6 +12,7 @@
 #include "copyright.h"
 #include "system.h"
 #include "elevatortest.h"
+#include "synch.h"  //lab3 synch
 
 // testnum is set in main.cc
 int testnum = 1;
@@ -215,6 +216,189 @@ Lab2ChallengeRR()
 
 }//Lab2ChallengeRR
 
+// ------------------------ Lab 3 Synch: Producer & Consumer ----------------------
+// #define WARE_HOUSE_SIZE 5
+
+// typedef struct Product{ //product
+//   int value;
+// }product;
+
+// class wareHouse  //warehouse to save products
+// {
+// public:
+//   wareHouse(){
+//     num = 0;
+//     emptyNum = new Semaphore("produceSem", WARE_HOUSE_SIZE);
+//     fullNum = new Semaphore("comsumeSem", 0);
+//     wareHouseLock = new Lock("wareHouseLock");
+//   };
+//   ~wareHouse(){
+//     delete proList;
+//   };
+
+//   product *consume(){
+//     DEBUG('p', "consume one product from wareHouse.\n");
+//     fullNum->P();
+//     wareHouseLock->Acquire();
+//     product *item = &proList[--num];
+//     wareHouseLock->Release();
+//     emptyNum->V();
+//     return item;
+//   };
+
+//   void produce(product *pro){
+//     DEBUG('p', "produce one product in wareHouse.\n");
+//     emptyNum->P();  //
+//     wareHouseLock->Acquire();
+//     proList[num++] = *pro;
+//     wareHouseLock->Release();
+//     fullNum->V();
+//   };
+//   void printProduct(){
+//     DEBUG('p', "print all products in warehouse\n");
+//     printf("All products(total:%d) in warehouse(size:%d):\n", num, WARE_HOUSE_SIZE);
+//     for(int i = 0; i < num; i++) {
+//         if(i % 10 == 0) printf("%d\n", proList[i]);
+//         else printf("%d ", proList[i]);
+//     }
+//     printf("\n");
+//   }
+
+// private:
+//   Semaphore *emptyNum;
+//   Semaphore *fullNum;
+//   int num;
+//   product proList[WARE_HOUSE_SIZE];
+//   Lock *wareHouseLock;
+// }*warehouse; //wareHouse
+wareHouse *warehouse;
+
+void Producer(int itemNum) {
+    for(int i = 0; i < itemNum; i++){
+        printf("PPP Thread %s PPP, ", currentThread->getName());
+        product* item = new product();
+        item->value = i;
+        warehouse->produce(item);
+        printf("Produce product: %d\n", item->value);
+
+        interrupt->OneTick();
+    }
+}
+
+void Consumer(int iterNum) {
+    for (int i = 0; i < iterNum; i++) {
+        printf("CCC Thread %s CCC, ", currentThread->getName());
+        product* item = warehouse->consume();
+        printf("Consume product: %d\n", item->value);
+
+        interrupt->OneTick();
+    }
+}
+
+
+void Lab3ProConTest(){
+    DEBUG('p', "Now Test Producer & Consumer!\n");
+    warehouse = new wareHouse();
+
+    Thread *p1 = new Thread("Producer_1");
+    Thread *c1 = new Thread("Consumer_1");
+
+    p1->Fork(Producer, (void*)4);
+    c1->Fork(Consumer, (void*)3);
+
+    currentThread->Yield(); // Yield the main thread
+}
+
+// ----------------- Lab3 Synch: Barrier ---------------------------------
+#define threadNum 4
+#define rows 24
+#define cols 10
+#define threadRows rows/threadNum
+double matrix[rows][cols];
+Barrier *barrier;
+
+void barrierThread(int startRow){
+
+    // 得到需要计算的范围
+    int endRow = startRow + threadRows;
+
+    // 第１轮计算
+    for (int x = startRow; x < endRow; x++) for (int y = 0; y < cols; y++) {
+        matrix[x][y] += (x+1)*(y+1);
+    }
+    printf("Thread \"%s\" finish First Calculation\n", currentThread->getName());
+    barrier->BarrierFunc(currentThread->getThreadId());
+
+    // 第２轮计算
+    for (int x = startRow; x < endRow; x++) for (int y = 0; y < cols; y++) {
+        matrix[x][y] /= startRow+1;
+    }
+    printf("Thread \"%s\" finish Second Calculation\n", currentThread->getName());
+    barrier->BarrierFunc(currentThread->getThreadId());
+
+    // 第3轮计算
+    for (int x = startRow; x < endRow; x++) for (int y = 0; y < cols; y++) {
+        matrix[x][y] -= startRow/threadRows;
+    }
+    printf("Thread \"%s\" finish Third Calculation\n", currentThread->getName());
+}
+
+void Lab3Barrier(){
+    Thread *threads[threadNum];
+    barrier = new Barrier(threadNum);
+
+    //initialize threads
+    for(int i = 0; i < threadNum; i++){
+        char ThreadName[10];
+        sprintf(ThreadName, "t_%d", i+1);
+        threads[i] = new Thread(strdup(ThreadName));
+    }
+
+    int startRows = 0;
+    for(int i = 0; i < threadNum; i++) {
+        threads[i]->Fork(barrierThread, (void*)startRows);
+        startRows += threadRows;
+    }
+
+     // Initialization
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            matrix[i][j] = 0;
+        }
+    }
+
+    printf("main() is ready.\n");
+
+    currentThread->Yield(); // Yield the main thread
+
+    barrier->BarrierFunc(currentThread->getThreadId());
+    // main will wake everybody up when everybody is reaching the barrier
+
+    printf("main() is going!\n");
+
+    currentThread->Yield(); // Yield the main thread
+    // Everybody doing Second calculation
+
+    barrier->BarrierFunc(currentThread->getThreadId());
+
+    printf("main() is going again!\n");
+
+    currentThread->Yield(); // Yield the main thread
+    // Everybody doing Third calculation 
+
+    // Back to main and print the result
+    printf("Result of data:\n");
+    for (int i = 0; i < rows; i++ ) {
+        for (int j = 0; j < cols; j++) {
+            printf("%5.2lf ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+
+}//Lab3Barrier
+
+
+
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -248,6 +432,16 @@ ThreadTest()
         printf("Lab2 Challenge Round Robin:\n");
         printf("(Don't forget to add `-rr` to activate timer.)\n");
         Lab2ChallengeRR();
+        break;
+
+    case 8:
+        printf("Lab3 Synch - Producer&Consumer:\n");
+        Lab3ProConTest();
+        break;
+
+    case 9:
+        printf("Lab3 Sync - Barrier:\n");
+        Lab3Barrier();
         break;
 
     default:

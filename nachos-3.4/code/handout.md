@@ -8,3 +8,10 @@
 - t: thread
 - T: TLB
 
+
+
+### Error Type
+
+- **segmentation faults**: maybe be stack overflow; can be others
+- 
+

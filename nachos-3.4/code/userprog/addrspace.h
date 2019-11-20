@@ -33,6 +33,10 @@ class AddrSpace {
 
     //Lab3: print out address space-specific
     void PrintState();
+    //Lab3: clear own BitMap
+#ifdef USE_BITMAP
+    void ClearBitMap();
+#endif
 
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation

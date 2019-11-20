@@ -137,7 +137,7 @@ BitMap::Print()
     for (int i = 0; i < numBits; i++)
 	    if (Test(i))
 	        printf("%d, ", i);
-    printf("\n-----------------------------------------\n"); 
+    printf("\n------------------------------------------------------------------\n"); 
 }
 
 // These aren't needed until the FILESYS assignment

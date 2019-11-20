@@ -101,7 +101,8 @@ AddrSpace::AddrSpace(OpenFile *executable)
         pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
                         // a separate page, we could set its 
                         // pages to be read-only
-    }//for
+    }//for-i
+
 
 #ifdef USE_BITMAP
     machine->bitmap1->Print();
@@ -111,13 +112,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
     bzero(machine->mainMemory, size);
 
     // then, copy in the code and data segments into memory
-    if (noffH.code.size > 0) {
+    if (noffH.code.size > 0) { // code segment
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
         executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
 			noffH.code.size, noffH.code.inFileAddr);
     }
-    if (noffH.initData.size > 0) {
+    if (noffH.initData.size > 0) { // data segment
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
         executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
@@ -199,6 +200,20 @@ void AddrSpace::RestoreState()
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
+
+
+//------------------------------- Lab 3 ----------------------------------
+// Lab3 AddrSpace::ClearBitMap
+// Clear bits only belong to this process, not all,
+//------------------------------------------------------------------------
+#ifdef USE_BITMAP
+void AddrSpace::ClearBitMap()
+{
+    for(int i = 0; i < numPages; i++) {
+        machine->bitmap1->Clear(pageTable[i].physicalPage);
+    }
+}
+#endif
 
 //------------------------------- Lab 3 ----------------------------------
 // Lab3 AddrSpace::PrintState

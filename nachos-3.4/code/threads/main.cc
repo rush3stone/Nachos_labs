@@ -116,7 +116,7 @@ main(int argc, char **argv)
 						argCount = 2;
 				} else if (!strcmp(*argv, "-X")){ //Lab3 Exercise: test MultiThread
 						ASSERT(argc > 1);
-						MultiThread(*(argv + 1)); //第一个参数是nachos
+						MultiThread(*(argv + 1)); //pyq: second argv is filename(program)
 						argCount = 2;
 				} else if (!strcmp(*argv, "-c")) {      // test the console
 						if (argc == 1)

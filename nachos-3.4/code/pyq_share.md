@@ -1,135 +1,67 @@
-stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -x ../test/matmult -d BT
-Clear page 0 in BitMap.
-Clear page 1 in BitMap.
-Clear page 2 in BitMap.
-Clear page 3 in BitMap.
-Clear page 4 in BitMap.
-Clear page 5 in BitMap.
-Clear page 6 in BitMap.
-Clear page 7 in BitMap.
-Clear page 8 in BitMap.
-Clear page 9 in BitMap.
-Clear page 10 in BitMap.
-Clear page 11 in BitMap.
-Clear page 12 in BitMap.
-Clear page 13 in BitMap.
-Clear page 14 in BitMap.
-Clear page 15 in BitMap.
-Clear page 16 in BitMap.
-Clear page 17 in BitMap.
-Clear page 18 in BitMap.
-Clear page 19 in BitMap.
-Clear page 20 in BitMap.
-Clear page 21 in BitMap.
-Clear page 22 in BitMap.
-Clear page 23 in BitMap.
-Clear page 24 in BitMap.
-Clear page 25 in BitMap.
-Clear page 26 in BitMap.
-Clear page 27 in BitMap.
-Clear page 28 in BitMap.
-Clear page 29 in BitMap.
-Clear page 30 in BitMap.
-Clear page 31 in BitMap.
-Set page 0 in BitMap.
-Set page 1 in BitMap.
-Set page 2 in BitMap.
-Set page 3 in BitMap.
-Set page 4 in BitMap.
-Set page 5 in BitMap.
-Set page 6 in BitMap.
-Set page 7 in BitMap.
-Set page 8 in BitMap.
-Set page 9 in BitMap.
-Set page 10 in BitMap.
-Set page 11 in BitMap.
-Set page 12 in BitMap.
-Set page 13 in BitMap.
-Set page 14 in BitMap.
-Set page 15 in BitMap.
-Bitmap set:
-0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 
------------------------------------------
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-=> TLB Miss, Page Fault.
-TLBSize=4, TLB Miss: 38, TLB Hit: 1166, Total Translation: 1204, TLB Miss Rate: 3.16%
-Clear page 0 in BitMap.
-Clear page 1 in BitMap.
-Clear page 2 in BitMap.
-Clear page 3 in BitMap.
-Clear page 4 in BitMap.
-Clear page 5 in BitMap.
-Clear page 6 in BitMap.
-Clear page 7 in BitMap.
-Clear page 8 in BitMap.
-Clear page 9 in BitMap.
-Clear page 10 in BitMap.
-Clear page 11 in BitMap.
-Clear page 12 in BitMap.
-Clear page 13 in BitMap.
-Clear page 14 in BitMap.
-Clear page 15 in BitMap.
-Clear page 16 in BitMap.
-Clear page 17 in BitMap.
-Clear page 18 in BitMap.
-Clear page 19 in BitMap.
-Clear page 20 in BitMap.
-Clear page 21 in BitMap.
-Clear page 22 in BitMap.
-Clear page 23 in BitMap.
-Clear page 24 in BitMap.
-Clear page 25 in BitMap.
-Clear page 26 in BitMap.
-Clear page 27 in BitMap.
-Clear page 28 in BitMap.
-Clear page 29 in BitMap.
-Clear page 30 in BitMap.
-Clear page 31 in BitMap.
-No threads ready or runnable, and no pending interrupts.
-Assuming the program completed.
-Machine halting!
+# LAB4 同步机制 讨论记录
 
-Ticks: total 979, idle 0, system 10, user 969
-Disk I/O: reads 0, writes 0
-Console I/O: reads 0, writes 0
-Paging: faults 0
-Network I/O: packets received 0, sent 0
+​                                                                                                                                    *记录人：彭宇清*
 
-Cleaning up...
+#### 时间：2019年11月16日 18:00~19:30
 
+#### 地点：５号楼三楼会议室
+
+#### 参加人员：彭宇清（组长）、游禹韩、杜尧帝、张越、 郭宏宇
+
+## 讨论内容
+
+本次讨论主要结合上一次课程中进程同步的内容讨论xv6中同步机制的实现。其中，
+
+#### 论题1 XV6中如何使用锁的？
+
+​		由于锁会降低并发度，所以xv6 非常谨慎地使用锁来避免竞争条件。使用锁的一个难点在于要决定使用多少个锁，以及每个锁保护哪些数据、不变量。一个简单的例子就是 IDE 驱动，`iderw`有一个磁盘请求的队列，处理器可能会并发地向队列中加入新请求。为了保护链表以及驱动中的其他不变量，`iderw` 会请求获得锁 `idelock`并在函数末尾释放锁。
+
+对于锁的粒度选择，xv6 只使用了几个简单的锁；例如，xv6 中使用了一个单独的锁来保护进程表及其不变量，更精细的做法是给进程表中的每一个条目都上一个锁，这样在不同条目上运行的线程也能并行了。然而，当一个操作需要维持关于整个进程表的不变量时，这样的做法会让情况变得很复杂，因为此时它可能需要持有多个锁。
+
+
+
+#### 论题2 　XV6中锁的顺序是怎样的
+
+如果一段代码要使用多个锁，那么必须要注意代码每次运行都要以相同的顺序获得锁，否则就有死锁的危险。假设某段代码的两条执行路径都需要锁 A 和 B，但路径1获得锁的顺序是 A、B，而路径2获得锁的顺序是 B、A。这样就有能路径1获得了锁 A，而在它继续获得锁 B 之前，路径2获得了锁 B，这样就死锁了。这时两个路径都无法继续执行下去了，因为这时路径1需要锁 B，但锁 B已经在路径2手中了，反之路径2也得不到锁 A。为了避免这种死锁，所有的代码路径获得锁的顺序必须相同。避免死锁也是我们把锁作为函数使用规范的一部分的原因：调用者必须以固定顺序调用函数，这样函数才能以相同顺序获得锁。
+
+由于 xv6 本身比较简单，它使用的锁也很简单，所以 xv6 几乎没有锁的使用链。最长的锁链也就只有两个锁。例如，`ideintr` 在调用 `wakeup` 时持有 ide 锁，而 `wakeup` 又需要获得 `ptable.lock`。还有很多使用 `sleep`/`wakeup` 的例子，它们要考虑锁的顺序是因为 `sleep` 和 `wakeup` 中有比较复杂的不变量，我们会在第5章讨论。文件系统中有很多两个锁的例子，例如文件系统在删除一个文件时必须持有该文件及其所在文件夹的锁。xv6 总是首先获得文件夹的锁，然后再获得文件的锁。
+
+
+
+### 疑问
+
+- **proc.cc-155行:** `np->cwd = idup(proc->cwd);`表示的含义是什么
+
+  初步猜测：`fork()`中进行的工作是新进程创建并把父进程的一切内容赋值给它，此处应该是给新进程的文件目录变量赋值为父进程的文件目录，而调用idup()函数的作用是在其中增大ip的值，即对相应文件来说，增加其软链接的个数。
+
+- **proc.cc-183行:** `iput(proc->cwd);`表示的含义是什么
+
+  初步猜测：承接上个疑问，此处在`exit()`中`proc->cwd = 0;`前，结合其中的注释，应该是当销毁进程时删除其文件目录指针前，判断一个软链接的个数，如果大于１直接减１，如果是最后一个，则不止软连接要被删除，该索引节点也需要被删除。
+
+  
+
+### 本周课后任务
+
+- **考虑XV6如何通过锁来保证中断处理程序正常的**
+
+  中断处理程序有可能与另一个 CPU 上运行非中断代码使用同一个数据，这会导致出错！
+
+- **xchg指令的机制是怎样的？**
+
+  
+
+
+
+---
+
+### **组内评分**
+
+**游禹韩**：9分
+
+**张越**：9分
+
+**杜尧帝**：9分
+
+**郭宏宇**：９分
+
+**彭宇清**：9分(记录员)

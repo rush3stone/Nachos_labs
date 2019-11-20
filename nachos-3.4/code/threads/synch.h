@@ -41,7 +41,8 @@ class Semaphore {
     Semaphore(char* debugName, int initialValue);	// set initial value
     ~Semaphore();   					// de-allocate semaphore
     char* getName() { return name;}			// debugging assist
-    
+    int getValue() {return value;}     // pyq: check if locked or not
+
     void P();	 // these are the only operations on a semaphore
     void V();	 // they are both *atomic*
     
@@ -76,10 +77,13 @@ class Lock {
 					// holds this lock.  Useful for
 					// checking in Release, and in
 					// Condition variable ops below.
+    bool isLocked();  // true if Locked
 
   private:
     char* name;				// for debugging
     // plus some other stuff you'll need to define
+    Thread *lockThread;   //thread holding the lock
+    Semaphore *semaphore; // use Semaphore implement lock
 };
 
 // The following class defines a "condition variable".  A condition
@@ -132,5 +136,51 @@ class Condition {
   private:
     char* name;
     // plus some other stuff you'll need to define
+    List *queue;   // waiting queue
 };
+
+
+// ------------------ Lab3 Sysch: Producer & Consumer  ----------------
+#define WARE_HOUSE_SIZE 5
+
+typedef struct Product{ //product
+  int value;
+}product;
+
+class wareHouse  //warehouse to save products
+{
+public:
+  wareHouse();
+  ~wareHouse();
+  product *consume();
+  void produce(product *pro);
+  void printProduct();
+
+private:
+  Semaphore *emptyNum;
+  Semaphore *fullNum;
+  int num;
+  product proList[WARE_HOUSE_SIZE];
+  Lock *wareHouseLock;
+}; //wareHouse
+
+
+
+// --------------------- Lab3 Synch: Barrier ----------------------------------
+class Barrier{
+public:
+    Barrier(int num);
+    void  BarrierFunc(int p);
+    // how many processors have entered the barrier
+    // initialize to 0
+    int arrive_counter;
+    // how many processors have exited the barrier
+    // initialize to p
+    int leave_counter;
+    int flag;   //
+    int totalCount;
+    Lock *lock;
+};
+// -----------------------------------------------------------------------------
+
 #endif // SYNCH_H

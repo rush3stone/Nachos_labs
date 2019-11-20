@@ -1,27 +1,19 @@
 /* pyq_test.c 
- *    Test program to print Hello World.
+ *    Test program
  *
- *    Intention is to stress virtual memory system.
+ *    Get sum() from 0 to N
  *
- *    Ideally, we could read the unsorted array off of the file system,
- *	and store the result back to the file system!
- *
- *  For Lab3 Memory
  */
 #include "syscall.h"
 
-#define N 20
-
+#define N 3
 int
 main()
 {
     int i;
-    int result[N];
-    result[0] = 0;
-    result[1] = 1;
-    for (i = 2; i < N; i++)
-    {
-        result[i] = result[i-1] + result[i-2];
+    int sum = 0;
+    for (i = 0; i <= N; i++){
+        sum += i;
     }
-    Exit(result[N-1]);
+    Exit(sum);
 }
