@@ -30,7 +30,7 @@
 OpenFile::OpenFile(int sector)
 { 
     hdr = new FileHeader;
-    hdr->FetchFrom(sector);
+    hdr->FetchFrom(sector); //pyq: fetch header info from disk sector
     seekPosition = 0;
 }
 
@@ -140,6 +140,10 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
     // copy the part we want
     bcopy(&buf[position - (firstSector * SectorSize)], into, numBytes);
     delete [] buf;
+
+    // Lab5-Ex1: update info of file
+    hdr->updateFileInfo(FALSE);
+
     return numBytes;
 }
 
@@ -163,7 +167,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     numSectors = 1 + lastSector - firstSector;
 
     buf = new char[numSectors * SectorSize];
-
+// pyq: check if first and last sector are to be partially modified
     firstAligned = (position == (firstSector * SectorSize));
     lastAligned = ((position + numBytes) == ((lastSector + 1) * SectorSize));
 
@@ -182,6 +186,10 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
         synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize), 
 					&buf[(i - firstSector) * SectorSize]);
     delete [] buf;
+
+    // Lab5-Ex1: update info of file
+    hdr->updateFileInfo(TRUE);
+
     return numBytes;
 }
 

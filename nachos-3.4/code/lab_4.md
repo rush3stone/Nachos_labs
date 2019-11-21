@@ -449,49 +449,7 @@ Machine halting!
 
 #### (二) 条件变量实现Barrier
 
--  结合页表项中记录`use`，实现时钟循环置换算法
-
-```C++
-void
-TLBasClock(TranslationEntry page) {
-    while(1){
-        TLBreplaceIdx = TLBreplaceIdx % TLBSize;
-        if(machine->tlb[TLBreplaceIdx].valid == FALSE) { //空，直接加入
-            break;
-        } else{
-             if(machine->tlb[TLBreplaceIdx].use) {　//已使用,更改标记，扫描下一页
-                machine->tld[TLBreplaceIdx].use = FALSE;
-                TLBreplaceIdx++;
-            }else{　//找到，替换
-                break;
-            }
-        }
-    }//while
-    machine->tlb[TLBreplaceIdx] = page;
-    machine->tlb[TLBreplaceIdx].use = TRUE; //标记已使用
-}
-#endif
-```
-**代码测试：**　分别用两种置换算法运行同一个程序，输出缺页率进行对比；
-
-> 注：Debug对应参数： `S` - syscall, `T` - TLB, `t` - thread, `M` - Memory
-
-```bash
-stone@stone:/mnt/shared/Nachos/nachos-3.4/code/userprog$ ./nachos -x ../test/matmult -d T
-# FIFO
-TLBSize=4, TLB Miss: 8630, TLB Hit: 104664, Total Translation: 113294, TLB Miss Rate: 7.62%
-Machine halting!
-
-# CLOCK
-TLBSize=4, TLB Miss: 8779, TLB Hit: 104900, Total Translation: 113679, TLB Miss Rate: 7.72%
-Machine halting!
-```
-
-**遗留问题：**
-
-- 为什么两种置换算法的TLB失效率相差不大呢？
-
-  是因为矩阵相乘的原因吗？
+-  （待修改）
 
 
 

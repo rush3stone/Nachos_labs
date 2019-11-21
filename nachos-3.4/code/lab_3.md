@@ -553,6 +553,8 @@ Machine halting!
 
 - **纠错：** 上述方式只能针对单进程，当同时有多个进程在内存中运行时，显然不能把输入其他人的`bits`也给删除了，所以需要针对地址空间单独构造一个释放`BitMap`的函数！
 
+  > 小组讨论－尧帝思路：直接用machine->addrspace调用，进而清楚地址空间即可，不需要单独创建一个函数接口（代码待修改）
+  
   ```c++
   #if USE_BITMAP 
         currentThread->space->ClearBitMap();
@@ -565,9 +567,9 @@ Machine halting!
           machine->bitmap1->Clear(pageTable[i].physicalPage);
       }
   }
-  #endif
+#endif
   ```
-
+  
   
 
 

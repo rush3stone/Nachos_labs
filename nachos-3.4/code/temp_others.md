@@ -1,8 +1,24 @@
+## OS S 2-9
+
+#### 隐蔽通道场景　(P8-10)
+
+**隐蔽存储通道**　补充eg：发送方通过某个存储的状态，接受方观察其状态的变化，若变化表示1,若未变则表示0，这样就可以传递任意信息
+
+
+
+
+
 ## 算法分析－回溯
 
+**QA** : 排列树（阶乘树？）．子集树　的精确定义（整理一下涉及到的所有这种搜索结构）
 
 
 
+最大团：最大完全子图（顶点集）
+
+点独立集：图顶点的子集，其中任意两顶点之间都没有边
+
+则U是G的最大团　当且仅当　U是G的补图的最大点独立集
 
 
 
@@ -151,11 +167,11 @@ sockets：代表网络链接的文件类型
 
 对于内存，把PTE的private area标记为read only，每个进程的虚拟内存则标记为copy on write；当进行**Fork()**时：
 
-- > Create exact copies of current mm_struct, vm_area_struct, and page tables. 
-  >
-  > Flag each page in both processes as read-only
-  >
-  > Flag each vm_area_struct in both processes as private COW
+> Create exact copies of current mm_struct, vm_area_struct, and page tables. 
+>
+> Flag each page in both processes as read-only
+>
+> Flag each vm_area_struct in both processes as private COW
 
 - 复制父进程的mm_struct, vm_area_struct, and page tables. 
 

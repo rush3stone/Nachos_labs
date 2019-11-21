@@ -102,11 +102,11 @@
 
 | 第一部分     | Exercise 1     | Exercise 2      | Exercise 3      |
 | ------------ | -------------- | --------------- | --------------- |
-|              | Y              | Y               | Y               |
+|              | Y              | Y               | N               |
 | **第二部分** | **Exercise 4** | **Exercise 5**  | **Exercise 6**  |
-|              | Y              | Y               | Y               |
+|              | N              | N               | N               |
 | **第三部分** | **Exercise 7** | **Challenge 1** | **Challenge 2** |
-|              | Y              | Y               | Y               |
+|              | N              | N               | N               |
 
 
 
@@ -128,51 +128,119 @@
 >
 >  code/userprog/bitmap.h和code/userprog/bitmap.cc
 
+### QA:
+
+- 1, what is **left open?**
+
+  filesys.cc/FileSystem()-else
 
 
 
-- **threads/synch.h(cc)**
+**Nachos文件系统初始情况：**　
 
-  Nachos声明了三种同步机制：信号量，锁以及条件变量，目前只定义了**信号量**的具体内容，另外两种需要自己实现（Exercise 3）
+文件系统总的**磁盘sector表(freeMapFile)**和**根目录(directoryFile)**各自以一个普通Nachos文件的形式保存，分别在sector0和1，sector表是用BitMap结构来保存的；之后create等操作时，都是修改这两个文件的状态
 
-  **变量定义:**
+Nachos只有一级目录(根目录在编号为1的sector里);
 
-  - `value`：表示信号量的值，始终非负；
+create文件时，会给文件单独再设置一个bitmap，从总的BitMap(freeMapFile)中分配disk sectors
 
-- `queue`：表示当信号量被申请完后，排队等待的进程；
 
-**同步机制：**
 
-由`P`&`V`操作分别申请和释放信号量
+> 创建新文件目录项的过程：the top-level directory is stored in a fille associated with fnode 1. Updating the directory when creating a new file requires reading the file associated with fnode 1, finding an unused directory entry, initializing it, and then writing the directory back out to disk.
 
-- `P()`: 先关中断，然后申请资源；若资源数为`0`，则先把当前进程加入`queue`，然后`sleep()`（即：不会执行资源数减１的操作，`sleep`直到被唤醒）
+> fnode(FileHeader node): the sector that contains the FileHeader
 
-  - `V()`: 先关中断，然后取下`queue`中首个被睡眠进程，设置为`ready`状态；
+Nachos文件系统的初始结构如下：
 
-  **`value`值的变化：** 
+![Structure_Nachos_File_System](./images/nachos_file_system.png)
 
-  最小为０；P()中之后申请资源的进程就会被`sleep`，唤醒后虽然会继续执行`value--`，但是`value`并不会减为负值，因为在V()中会先执行`value++`
+- **SynchDisk:** 作为raw disk的上层封装，实现了磁盘的互斥访问，Nachos是在SynchDisk上实现文件系统
 
 
 
 
-- **threads/synchlist.h(cc)**
+- **filesys/filesys.h(cc)**
 
-  定义了一个用于同步机制的链表
+  Nachos中的文件系统有两种实现方式，第1种`STUB`方式是直接把对文件系统映射到模拟的机器上，是为了方便虚存和同步部分的实验提前需要使用文件系统；第2种则是真正的文件系统，构建在Nachos的disk模拟器上；（**修改VM中的Makefile**）
 
-  **变量定义**
+  **实现文件系统**
 
-  - `list`: 保存进程需要资源(`item`)
-  - `lock`: 保证`list`被互斥访问
-  - `listEmpty`: 保存
+  - **FileSystem(format):** boot时初始化，参数format表示是否清除之前的设置和内容
+
+    
+
+  - **Create():** （注释非常清晰）
+
+    若文件已存在：文档中说会清空? 但是代码中是直接返回的！
+
+    在创建时一次性分配磁盘空间（只是对应了磁盘分区和bitmap，而contents大小为0）（Exercise5需要修改此处，实现文件长度动态调整）
+
+    
+
+  - **Open():** 创建一个OpenFile实例
+
+    对于Nachos来说，open的目的就是读写，故有open权限就须有read/write权限，也即即使只执行read操作，open也必须要有write权限
+
+    open操作本身不对已有内容进行删除，如果有删除需要，可以先执行create再执行open操作
+
+    
+
+    > **Key:** *因此Nachos无法执行没有写权限的二进制文件*
+
+  - **Remove():** 先要建立临时的目录文件实例，文件头实例，和BitMap实例用以删除
+
+    Exercise7-３: 结合文档Road-Map，当有多个进程访问文件时，不能删除(UNIX-like)
+
+
+
+- **filesys/openfile.h(cc)**
+
+  > Note that reading and writing a file as well as repositioning within a file are not
+> operations on files. Instead, they are operations on open files. File and open file are
+  > two different concepts.
+
+  一个FileHeader和其seekPosition组成；以及对于该文件的open, read, write等操作
+
+  - **seek():** 设置文件的访问位置
+
+  - **ReadAt/WriteAt(position):** 
+
+    从指定缓冲区读写文件，position表示从文件开头的offset；返回读写的字节数
+
+    **分区边界问题：** 磁盘只能按照整块sector进行读写；但程序无法保证都是按sector组织的；对于<u>只读写其中一部分部分的sector</u>，Nachos处理方式(comments at openfile.cc/lines100-107):
+
+    **Read:** 读入整个sector，但是只copy想要的部分
+  
+    **Write:** 为防止覆盖不需要修改的部分，先把该sector读入，然后只替换要写的部分，然后再写回文件
+  
+  - **Read/Write():** 调用ReadAt/WriteAt()，从文件当前的seekPosition顺序读写；
+
+
+
+**文件系统的物理表示：**
+
+
+- **filesys/filehdr.h(cc)**
+
+  维护文件的头信息(类似于UNIX的i-node，)；文件以头编号唯一标识
+
+  > A FileHeader (discussed in detail below) is similar to a Unix inode in that the low-level file system routines know nothing about file names; files are uniquely identified by there FileHeader number.
+
+  
+
+  ​	
+
+- **filesys/directory.h(cc)**
+
+  **目录文件!** 包含一个个的文件目录项 以及　对于文件目录项table的各种操作；（每新创建一个文件，就在其table中新增一个目录项）
+
+  - 文件目录项`DirectoryEntry`：包含<文件名，sector ID>
 
   **函数接口**
 
-  - **Append():** 增加队列元素
+  - **FetchFrom():** 从disk初始化一个文件目录
 
-  - **Remove():** 删除队列元素
-
-  - **Mapcar(func):** 先使用自带的`lock`上锁，然后对`list`中每个元素调用传入的函数`func`进行操作；
+  - **Remove():** 只是删除目录，对于FileHeader和sectors则是各自deallocate的
 
 
 
@@ -180,47 +248,99 @@
 
  > Task:  增加文件描述信息，如“类型”、“创建时间”、“上次访问时间”、“上次修改时间”、“路径”等等。尝试突破文件名长度的限制。
 
-#### (一) 锁
+> When creating and modifying Nachos files, one must be careful to keep track of what data structures are on disk, and which ones are in memory. For example, when creating a file, a new FileHeader must be allocated, together with sectors to hold the data (free list file). The top-level directory must also be updated. However, these changes don't become permanent until the updated free list and directory files are flushed to disk.
 
 **解决思路：**
 
-使用`Semaphore`实现模拟锁，信号量的初始数值赋为１，`P()`操作模拟`Acquire()`，`V()`操作模拟`Release()`；另外增加一个记录锁拥有者的变量；
+**Task1: 增加文件描述信息：** 在文件`FileHeader.h`中增加表示以上信息的变量并通过函数进行设置
+
+- **fileType, createdTime**: FileSystem::Create()创建文件时会调用FileHeader::Allocate()，在其中进行设置；
+
+- **lastVisitedTime, LastModifiedTime**： 在OpenFile中进行修改
+
+- **fileRoad:** 设置一个char数组，顺序存储其目录名（数组大小即为目录深度上限）
+
+  > 原思路：用Nachos已有的list表示一个个目录文件名;这样访问很不方便
+
+**代码实现：**
+
+修改FileHeader的定义：
 
 ```C++
-// plus some other stuff you'll need to define
-Thread *lockThread;   //thread holding the lock
-Semaphore *semaphore; // use Semaphore implement lock
+// Lab5 filesys-Ex2: add info of file
+char *fileType;
+int createdTime;      
+int lastVisitedTime;
+int lastModifiedTime;
+char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
 ```
 
-`Lock`主要接口的实现：
+在**FileHeader::Allocate()**中设置createdTime和fileType；
+
+- 创建时间：赋值为Nachos当前的运行时间，
+
+- 文件类型：暂时都先设置为Normal，之后若要传入特定的文件类型，再修改Allocate()；
+
+- 文件路径：赋值为当前路径（多级目录下要设置＜当前目录＞变量，保存完整路径）
+
+  目前初始化的时候，在FileSystem::Create()中，直接在根目录下进行Add()操作(line197)，即加入根目录下，如果是多级目录，先要通过FetchFrom()把文件切换到对应目录才行啊！
 
 ```c++
-Lock::Lock(char* debugName) {
-    name = debugName;
-    lockThread = NULL;
-    semaphore = new Semaphore("SemForLock", 1);
-}
+fileType = "Normal";   //pyq: need add parameters to Allocate(), TODO.
+createdTime = stats->totalTicks; //pyq:set all TimeInfo as totalTicks
+lastModifiedTime = stats->totalTicks;
+lastVisitedTime = stats->totalTicks;
+// fileRoad = //TODO: add name to FileHeader for convenience?
+```
 
-//	Acquire -- wait until the lock is FREE, then set it to BUSY
-void Lock::Acquire() {
-    DEBUG('s', "thread %s ask for lock %s.\n", currentThread->getName(), name);
-    semaphore->P();
-    lockThread = currentThread;
-}
+在filehdr.h(cc)中增加更新文件信息的接口
 
-void Lock::Release() {
-    DEBUG('s', "thread %s ask for lock %s.\n", currentThread->getName(), name);
-    ASSERT(this->isHeldByCurrentThread());
-    semaphore->V();
-    lockThread = NULL;
+```c++
+//filehdr.h(cc)
+void FileHeader::updateFileInfo(bool writeFlag){
+    lastVisitedTime = stats->totalTicks;
+    if(writeFlag) //if been modified
+        lastModifiedTime = stats->totalTicks;
 }
+```
+
+当文件进行读写时，在OpenFile中调用从而更新；
+
+```c++
+//openfile.cc/ReadAt()
+hdr->updateFileInfo(FALSE);
+//openfile.cc/WriteAt()
+hdr->updateFileInfo(TRUE);
 ```
 
 
 
-> **探讨**： 既然使用Semaphore，自带关中断操作，Lock中应该不需要额外再关中断吧？
+**Task2: 突破文件名长度限制：**
+
+> 背景：Nachos中文件名长度被限制在9以内(derectory.h/line22 & directory.cc/line138);
 >
-> **答：** Semaphore中的中断用于互斥修改信号值，所以Lock是互斥访问的吗？是！因为只有一份信号值！
+> `name`由FileSystem::Create()创建文件时以字符串指针传入；会以字符数组形式被保存在Directory的目录项中；
+
+所以可以直接更改为字符指针存储（或者动态获得传入的名字长度，再申请相应大小的数组）；（在FileHeader中没有保存name信息，是不是添加了更方便调用）
+
+**代码实现**
+
+修改目录项DiretoryEntry的定义(filesys/directory.h)
+
+```c++
+char *name;  //lab5-Ex2: take off restriction of fileName Length  
+```
+
+改变文件名的保存语句
+
+```C++
+//Lab5-Ex2: take off restriction of fileName Length
+table[i].name = new char[strlen(name)];
+```
+
+
+
+**测试放在模块一完成后一起进行**
 
 
 
@@ -230,11 +350,32 @@ void Lock::Release() {
 
 ### Exercise 3  扩展文件长度
 
-> Task: 基于Nachos中的信号量、锁和条件变量，采用两种方式实现同步和互斥机制应用（其中使用条件变量实现同步互斥机制为必选题目）。具体可选择“生产者-消费者问题”、“读者-写者问题”、“哲学家就餐问题”、“睡眠理发师问题”等。（也可选择其他经典的同步互斥问题）
+> Task:  改直接索引为间接索引，以突破文件长度不能超过4KB的限制。
 
-#### **(一) 信号量实现生产者-消费者**
+**理解Nahos机制：**
 
-- 在`synch.h(cc)`中分别创建商品类`product`以及存放商品的缓冲区类`wareHouse`，对于其中商品状态的修改使用`Lock`实现互斥访问；用两个信号量分别表示缓冲区的空位置数量和已保存数量，进而实现生产者消费者问题；
+- **文件长度上限**: 即文件最多可以使用多少sector，在filehdr.h中的以数组形式分配(dataSectors[NumDirect])，限制即为NumDirect大小(line19)；
+- **直接索引的含义**：dataSector[]中保存的是disk sector的真实编号
+- **4KB限制**：SectorSize=128Bytes, sectorID(int)=4Bytes，所以存储文件header的分区忽略其他信息后，最多可以保存128/4=32个SectorID，则文件上限为32*128Bytes = 4KB
+- **NumDirect宏定义的含义**: FileHeader保存在一个sector中，那么除去初始时的`numBytes`和`numSectors`两个`int`变量，剩下空间**最多**可以保存多少个sector编号；(但其实经过Ex2后空间又减小了)
+
+```c++
+#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
+```
+
+- **具体分配disk sector:** 在FileHeader::Allocate()中lines49-50:在BitMap中不断找寻，
+
+  
+
+
+
+**解题思路：**
+
+间接索引？不是指向sector，而是指向二级索引！那我如何描述他的路径呢？
+
+
+
+
 
 ```C++
 #define WARE_HOUSE_SIZE 5　// size of buffer
@@ -368,11 +509,23 @@ Machine halting!
 
 
 
+---
+
 ### Exercise 4 实现多级目录
+
+> 背景：目前Nachos中目录项的信息为<name, sector>，sector中保存name文件的FileHeader
+>
+> **文件查找流程**：FileSystem::Open()中，在根目录文件directoryFile中查找目录项，从而得到对应文件的sector；然后用OpenFile()打开
 
 **解决思路**
 
-​	参考Linux的文件系统，本目录还有`.` `..`两个目录项，分别指向本目录和父目录
+多级目录，对于有的目录项指向的是新的目录文件，每个目录文件都保存在一个单独的sector中，所以和查找普通文件无差别
+
+- **查找方式**：根据文件中的路径，一层一层查找；FileSystem::Open()中，从根目录directoryFile开始，不断取文件路径fileRoad[]中的name进行查找, 直到找到该文件本身
+
+- ***新增目录设置：** 参考Linux的文件系统，设置还有`.` `..`两个目录项，分别指向本目录和父目录；本地目录中保存完成路径，父目录实际可以直接有本目录推出来
+
+- **文件创建:** 目前在FileSystem::Create()中，直接在根目录下进行Add()操作(line197)，即加入根目录文件下，如果是多级目录，需要加入到对应的目录文件才行！那就要先得到存放对应目录文件的sector(就是查找过程呗！)
 
 
 
@@ -426,9 +579,48 @@ Machine halting!
 
 ### Exercise 5 动态调整文件长度
 
->  对文件的创建操作和写入操作进行适当修改，以使其符合实习要求。 
+>  Task: 对文件的创建操作和写入操作进行适当修改，以使其符合实习要求。 
 
-**解题思路：** 增加一个队列，保存等待当前条件变量的进程；对于条件变量进行加锁，条件变量的接口分别都用上一部分`Lock`的内容进行实现即可！
+**Nachos背景:**　在创建文件时，会一次性按照initialSize进行sector分配；Allocate()内部逻辑很简单，就是根据大小从BitMap中查找空闲的sector进行分配
+
+```c++
+// filesys.cc/Create() lines201
+hdr->Allocate(freeMap, initialSize)
+```
+
+
+
+具体分配disk sector是在FileHeader::Allocate()中lines49-50:在BitMap中不断找寻，那么动态调整文件长度(Ex5)，就是BitMap的增删操作？
+
+*QA: 标记sector是否分配就是BitMap在进行，只不过怎么从BitMap映射到真实sectror进而写入文件的？*
+
+
+
+**解题思路：** 
+
+- 在文件Create()时的分配方式不变，没有内容可以设置initialSize为0
+
+- 根据老师提示，修改文件Create()和Write()的内容
+
+  - **Create()**: 不在一次性分配所有sector，初始时initialSize设为0
+
+    其实Create()中的Allocate()其实不用改啊，传入0就行啊！
+
+  - **WriteAt()**: 根据需要写入的大小，先申请sector，再执行写入
+
+  - **文件长度减小：** 即内容删除(TODO)
+
+    只需释放BitMap即可；(其内容会被其他文件覆盖)
+
+  
+
+  当前FileHeader类中关于DataSector[]的定义其实不用变，每次只需要更改他的`numBytes`和`numSectors`即可（*不过Exercise3要实现的间接索引还没思路？*）
+
+
+
+> 突然感觉好像很简单，如果没有Ex3的间接索引，直接改一下WriteAt()就可以了
+
+
 
 增加保存等待进程的队列
 
@@ -502,6 +694,10 @@ void Condition::Signal(Lock* conditionLock)
 
 > - 阅读Nachos源代码中与异步磁盘相关的代码，理解Nachos系统中异步访问模拟磁盘的工作原理。 filesys/synchdisk.h和filesys/synchdisk.cc
 > - 利用异步访问模拟磁盘的工作原理，在Class Console的基础上，实现Class SynchConsole。
+
+是raw disk上层的封装！
+
+
 
 
 

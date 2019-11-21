@@ -40,7 +40,7 @@ Directory::Directory(int size)
     table = new DirectoryEntry[size];
     tableSize = size;
     for (int i = 0; i < tableSize; i++)
-	table[i].inUse = FALSE;
+	    table[i].inUse = FALSE;
 }
 
 //----------------------------------------------------------------------
@@ -135,7 +135,9 @@ Directory::Add(char *name, int newSector)
     for (int i = 0; i < tableSize; i++)
         if (!table[i].inUse) {
             table[i].inUse = TRUE;
-            strncpy(table[i].name, name, FileNameMaxLen); 
+            // strncpy(table[i].name, name, FileNameMaxLen); //Nachos default
+            //Lab5-Ex2: take off restriction of fileName Length
+            table[i].name = new char[strlen(name)]; //pyq: save name
             table[i].sector = newSector;
         return TRUE;
 	}

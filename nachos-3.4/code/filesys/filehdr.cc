@@ -44,10 +44,18 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
     if (freeMap->NumClear() < numSectors)
-	return FALSE;		// not enough space
+	    return FALSE;		// not enough space
 
     for (int i = 0; i < numSectors; i++)
-	dataSectors[i] = freeMap->Find();
+	    dataSectors[i] = freeMap->Find();
+
+    //Lab5-Ex1: add info of file
+    fileType = "Normal";   //pyq: need add parameters to Allocate(), TODO.
+    createdTime = stats->totalTicks; //pyq:set all TimeInfo as totalTicks
+    lastModifiedTime = stats->totalTicks;
+    lastVisitedTime = stats->totalTicks;
+    // fileRoad = "root/" + name; //TODO: add name to FileHeader for convenience?
+
     return TRUE;
 }
 
@@ -62,8 +70,8 @@ void
 FileHeader::Deallocate(BitMap *freeMap)
 {
     for (int i = 0; i < numSectors; i++) {
-	ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-	freeMap->Clear((int) dataSectors[i]);
+        ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+        freeMap->Clear((int) dataSectors[i]);
     }
 }
 
@@ -147,4 +155,17 @@ FileHeader::Print()
         printf("\n"); 
     }
     delete [] data;
+}
+
+
+//----------------------------------------------------------------------
+// Lab5-Ex1: 
+// FileHeader::updateFileInfo
+// 	update info of file after been visited/modified
+//----------------------------------------------------------------------
+void
+FileHeader::updateFileInfo(bool writeFlag){
+    lastVisitedTime = stats->totalTicks;
+    if(writeFlag) //if been modified
+        lastModifiedTime = stats->totalTicks;
 }

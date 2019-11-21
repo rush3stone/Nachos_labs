@@ -16,9 +16,11 @@
 
 #include "disk.h"
 #include "bitmap.h"
-
-#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
+// pyq: num of direct pointers to the file's data sectors
+#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int)) 
 #define MaxFileSize 	(NumDirect * SectorSize)
+// Lab5 fileSys: limit of directory depth
+#define MaxDirectoryDepth 10
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
 // the "i-node"), describing where on disk to find all of the data in the file.
@@ -56,11 +58,20 @@ class FileHeader {
 
     void Print();			// Print the contents of the file.
 
+    void updateFileInfo(bool writeFlag);  //Lab5-Ex1: update visit/modify time of file
+
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file
     int dataSectors[NumDirect];		// Disk sector numbers for each data 
 					// block in the file
+
+    // Lab5 filesys-Ex2: add info of file
+    char *fileType;
+    int createdTime;      
+    int lastVisitedTime;
+    int lastModifiedTime;
+    char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
 };
 
 #endif // FILEHDR_H
