@@ -26,7 +26,7 @@
 
 #include "system.h"
 #include "filehdr.h"
-
+#include "time.h" //pyq: time.h exists in system.h, why have to include twice?(otherwise error)
 //----------------------------------------------------------------------
 // FileHeader::Allocate
 // 	Initialize a fresh file header for a newly created file.
@@ -48,13 +48,6 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 
     for (int i = 0; i < numSectors; i++)
 	    dataSectors[i] = freeMap->Find();
-
-    //Lab5-Ex1: add info of file
-    fileType = "Normal";   //pyq: need add parameters to Allocate(), TODO.
-    createdTime = stats->totalTicks; //pyq:set all TimeInfo as totalTicks
-    lastModifiedTime = stats->totalTicks;
-    lastVisitedTime = stats->totalTicks;
-    // fileRoad = "root/" + name; //TODO: add name to FileHeader for convenience?
 
     return TRUE;
 }
@@ -157,15 +150,37 @@ FileHeader::Print()
     delete [] data;
 }
 
+//----------------------------------------------------------------------
+// Lab5-Ex2: getFileType
+// 如果没有文件类型，就返回空字符串
+//----------------------------------------------------------------------
+char* getFileType(char *fileName){
+    char *dot = strrchr(fileName, '.');  //获取最后一个'.'的位置
+    if(!dot || dot == fileName) return "";
+    else return dot+1;
+}
+
+//--------------------------------------------------------------------
+// Lab5-Ex2: getCurrentTime
+// 获取当前时间，以字符串返回
+//----------------------------------------------------------------------
+char* getCurrentTime(void){
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* currentTime = localtime(&rawtime);
+    return asctime(currentTime);  //asctime(): tansfer to string
+}
 
 //----------------------------------------------------------------------
-// Lab5-Ex1: 
-// FileHeader::updateFileInfo
-// 	update info of file after been visited/modified
+// Lab5-Ex2: 
+// FileHeader::HeaderCreateInit
+// set all info for creation
 //----------------------------------------------------------------------
 void
-FileHeader::updateFileInfo(bool writeFlag){
-    lastVisitedTime = stats->totalTicks;
-    if(writeFlag) //if been modified
-        lastModifiedTime = stats->totalTicks;
+FileHeader::HeaderCreateInit(char *typ){
+    setCreateTime(typ);
+    char * currentTime = getCurrentTime();
+    setCreateTime(currentTime);
+    setVisitTime(currentTime);
+    setModifyTime(currentTime);
 }

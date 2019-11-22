@@ -1,7 +1,122 @@
+#### XV6同步机制　阅读要求
 
-stone@stone:/mnt/shared/Nachos/nachos-3.4/code/filesys$ ./nachos -D
-Assertion failed: line 159, file "../machine/sysdep.cc"
-Aborted (core dumped)
+阅读代码:
+锁部分 spinlock.h spinlock.c 以及相关其他文件代码
+请大家围绕如下一些问题阐述原理课的相关内容,以及 XV6 中是如何实现的。
+
+1. 什么是临界区?什么是同步和互斥?什么是竞争状态?临界区操作时中断是否应该开
+启?中断会有什么影响?XV6 的锁是如何实现的,有什么操作?xchg 是什么指令,该指 令
+有何特性?
+2. 基于 XV6 的 spinlock,请给出实现信号量、读写锁、信号机制的设计方案(三选二,请
+写出相应的伪代码)
+
+---
+
+[知乎：如何理解互斥锁、条件锁、读写锁以及自旋锁？](https://www.zhihu.com/question/66733477)
+
+
+
+XV6中`spinlock`的实现  ***spinlock.h(cc)***中
+
+```c++
+// Mutual exclusion lock.
+struct spinlock {
+  uint locked;       // Is the lock held? 锁可获得时为0,已被占时为1
+  
+  // For debugging:
+  char *name;        // Name of lock.
+  struct cpu *cpu;   // The cpu holding the lock.
+  uint pcs[10];      // The call stack (an array of program counters)
+                     // that locked the lock.
+};
+```
+
+xchg()获得锁返回０,锁已被占则返回1；它是atomic & serializable
+
+
+
+#### 信号量
+
+
+
+#### 读写锁
+
+**解决方案：**
+
+所谓读写锁，从英文名readers-writer可以很容易的理解其含义，即对于共享资源，多个读者访问并不互斥，而写者则与任何人都互斥；直接可以通过xv6已有的数据机构spinlock实现；
+
+**具体思路**
+
+定义两个自旋锁，分别对于读者数量和写操作加锁；再增加一个变量记录当前读者数量
+
+```c++
+spinlock 保护当前读者数量的锁;
+spinlock 保护写操作的锁;
+int 当前读者数量;
+```
+
+读写锁提供四个接口，分别是针对读操作的加锁/解锁，写操作的加锁/解锁
+
+- 对读操作加锁
+
+```c++
+void ReaderLock(){
+	获得读者数量锁；
+    读者数量++;
+    if(首个读者){
+        获得写者锁
+    }
+    释放读者数量锁
+}
+void ReaderUnlock(){
+    获得读者数量锁；
+    读者数量--;
+    if(最后一位读者){
+        释放写者锁
+    }
+    释放读者数量锁
+}
+```
+
+对写操作的加锁解锁，比较简单；
+
+```c++
+void WriterLock() {获得写者锁;}
+void WriterUnlock() {释放写者锁;}
+```
+
+
+
+**完整代码实现：－读写锁**
+
+```c++
+class ReadersWriterLock {
+    public:
+    	void ReaderLock(){
+            rlock.acquire(); //acquire lock for reader num
+            readerNum++;
+            if(readerNum==1){ //fisrt reader, acquire lock for writer
+                wlock.acquire(); 
+            }
+            rlock.release(); 
+        }
+        void ReaderUnlock(){ //release lock for reader num
+            rlock.acquire();
+            readerNum--;
+            if(readerNum == 0){ //last reader, acquire lock for writer
+                wlock.release();
+            }
+            rlock.release();
+        }
+
+    	void WriterLock() {wlock.acquire();} //acquire lock for writer
+        void WriterUnlock() {wlock.release();} //release lock for writer
+	private:
+    	spinlock rlock; //lock for reader num
+        spinlock wlock; //lock for writer
+        int readerNum; // num of current readers
+};
+```
 
 
 

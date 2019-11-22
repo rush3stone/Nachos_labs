@@ -32,14 +32,14 @@ class SynchDisk {
     
     void ReadSector(int sectorNumber, char* data);
     					// Read/write a disk sector, returning
-    					// only once the data is actually read 
-					// or written.  These call
+    					// only once the data is actually read or written.
+					    // These call
     					// Disk::ReadRequest/WriteRequest and
 					// then wait until the request is done.
     void WriteSector(int sectorNumber, char* data);
     
-    void RequestDone();			// Called by the disk device interrupt
-					// handler, to signal that the
+    void RequestDone();			// Called by the disk device interrupt handler,
+					//  to signal that the
 					// current disk operation is complete.
 
   private:

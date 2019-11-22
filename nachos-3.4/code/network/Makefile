@@ -587,7 +587,9 @@ filehdr.o: ../filesys/filehdr.cc /usr/include/stdc-predef.h \
  ../machine/stats.h ../machine/timer.h ../filesys/synchdisk.h \
  ../machine/disk.h ../threads/synch.h ../network/post.h \
  ../machine/network.h ../threads/synchlist.h ../threads/synch.h \
- ../filesys/filehdr.h
+ ../filesys/filehdr.h /usr/include/time.h \
+ /usr/include/i386-linux-gnu/bits/time.h \
+ /usr/include/i386-linux-gnu/bits/timex.h
 filesys.o: ../filesys/filesys.cc /usr/include/stdc-predef.h \
  ../threads/copyright.h ../machine/disk.h ../threads/utility.h \
  ../threads/copyright.h ../threads/bool.h ../machine/sysdep.h \

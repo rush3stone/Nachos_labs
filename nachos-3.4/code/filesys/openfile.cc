@@ -31,6 +31,7 @@ OpenFile::OpenFile(int sector)
 { 
     hdr = new FileHeader;
     hdr->FetchFrom(sector); //pyq: fetch header info from disk sector
+    hdr->setHeaderSector(sector); //Lab5: set HeaderSector
     seekPosition = 0;
 }
 
@@ -41,6 +42,7 @@ OpenFile::OpenFile(int sector)
 
 OpenFile::~OpenFile()
 {
+    hdr->WriteBack(hdr->getHeaderSector()); //Lab5: write back all header info
     delete hdr;
 }
 
@@ -142,7 +144,7 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
     delete [] buf;
 
     // Lab5-Ex1: update info of file
-    hdr->updateFileInfo(FALSE);
+    hdr->setVisitTime(getCurrentTime());
 
     return numBytes;
 }
@@ -188,7 +190,8 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     delete [] buf;
 
     // Lab5-Ex1: update info of file
-    hdr->updateFileInfo(TRUE);
+    hdr->setVisitTime(getCurrentTime());
+    hdr->setModifyTime(getCurrentTime());
 
     return numBytes;
 }

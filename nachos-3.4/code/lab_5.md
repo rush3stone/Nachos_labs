@@ -137,12 +137,13 @@
   
     ```bash
     sudo ./nachos -D  //打印整个文件系统
-    suod ./nachos -f  //初始化文件系统
-  ```
+    sudo ./nachos -f  //初始化文件系统(在system.cc中有定义)
+    ```
+    
+    
     
     
   
-
 - **疑问１：** 通过参数`D`查看文件系统，但是报错！
 
   ```bash
@@ -152,7 +153,7 @@
   ```
   
   **解决：** 通过查看`machine/sysdep.cc`对应代码，发现是打开文件失败，所以应该是文件权限问题；使用命令`sudo ./nachos -D`即可正常执行
-  **遗留：** 怎样赋予用户更大权限？
+  （或者用`chmod`命令修改执行文件(.o)的权限也行）
 
 
 
@@ -180,31 +181,54 @@
 
 - 1, what is **left open?**
 
-  filesys.cc/FileSystem()-else
+  filesys.cc/FileSystem()/else
+
+- 学习`time.h`中的`time_t`类，灵活获取系统的时间
 
 
 
 **Nachos文件系统初始情况：**　
 
-文件系统总的**磁盘sector表(freeMapFile)**和**根目录(directoryFile)**各自以一个普通Nachos文件的形式保存，分别在sector0和1，sector表是用BitMap结构来保存的；之后create等操作时，都是修改这两个文件的状态
+文件系统总的**磁盘sector表(freeMapFile)**和**根目录(directoryFile)**各自以一个普通Nachos文件的形式保存，分别在sector0和1，sector表是用BitMap结构来保存的；之后create等操作时，都是修改这两个文件的状态(filesys/filesys.cc)
 
 Nachos只有一级目录(根目录在编号为1的sector里);
 
-create文件时，会给文件单独再设置一个bitmap，从总的BitMap(freeMapFile)中分配disk sectors
+```C++
+// Sectors containing the file headers for the bitmap of free sectors,
+// and the directory of files.  These file headers are placed in well-known 
+// sectors, so that they can be located on boot-up.
+#define FreeMapSector 		0
+#define DirectorySector 	1
+```
 
 
-
-> 创建新文件目录项的过程：the top-level directory is stored in a fille associated with fnode 1. Updating the directory when creating a new file requires reading the file associated with fnode 1, finding an unused directory entry, initializing it, and then writing the directory back out to disk.
-
-> fnode(FileHeader node): the sector that contains the FileHeader
 
 Nachos文件系统的初始结构如下：
 
 ![Structure_Nachos_File_System](./images/nachos_file_system.png)
 
+**启动文件系统**
+
+宏定义FILESYS_NEEDED生效，然后在`system.cc`中有多条语句创建filesystem并初始化；
+
+```C++
+#ifdef FILESYS_NEEDED
+FileSystem  *fileSystem;
+...
+if (!strcmp(*argv, "-f"))
+    format = TRUE;
+#endif
+```
+
+
+
+**磁盘同步操作实现**
+
 - **SynchDisk:** 作为raw disk的上层封装，实现了磁盘的互斥访问，Nachos是在SynchDisk上实现文件系统
 
+  
 
+**Nachos文件系统结构**
 
 
 - **filesys/filesys.h(cc)**
@@ -241,42 +265,47 @@ Nachos文件系统的初始结构如下：
 
 
 
+**文件读写** (OpenFile)
+
 - **filesys/openfile.h(cc)**
 
-  > Note that reading and writing a file as well as repositioning within a file are not
-> operations on files. Instead, they are operations on open files. File and open file are
+  > Note that reading and writing a file as well as repositioning within a file are not operations on files. Instead, they are operations on open files. File and open file are
   > two different concepts.
-
-  一个FileHeader和其seekPosition组成；以及对于该文件的open, read, write等操作
-
-  - **seek():** 设置文件的访问位置
-
-  - **ReadAt/WriteAt(position):** 
-
-    从指定缓冲区读写文件，position表示从文件开头的offset；返回读写的字节数
-
-    **分区边界问题：** 磁盘只能按照整块sector进行读写；但程序无法保证都是按sector组织的；对于<u>只读写其中一部分部分的sector</u>，Nachos处理方式(comments at openfile.cc/lines100-107):
-
-    **Read:** 读入整个sector，但是只copy想要的部分
   
-    **Write:** 为防止覆盖不需要修改的部分，先把该sector读入，然后只替换要写的部分，然后再写回文件
+    一个FileHeader和其seekPosition组成；以及对于该文件的open, read, write等操作
   
-  - **Read/Write():** 调用ReadAt/WriteAt()，从文件当前的seekPosition顺序读写；
+    - **seek():** 设置文件的访问位置
+  
+    - **ReadAt/WriteAt(position):** 
+  
+      从指定缓冲区读写文件，position表示从文件开头的offset；返回读写的字节数
+  
+      **分区边界问题：** 磁盘只能按照整块sector进行读写；但程序无法保证都是按sector组织的；对于<u>只读写其中一部分部分的sector</u>，Nachos处理方式(comments at openfile.cc/lines100-107):
+  
+      **Read:** 读入整个sector，但是只copy想要的部分
+  
+      **Write:** 为防止覆盖不需要修改的部分，先把该sector读入，然后只替换要写的部分，然后再写回文件
+  
+    - **Read/Write():** 调用ReadAt/WriteAt()，从文件当前的seekPosition顺序读写；
 
 
 
 **文件系统的物理表示：**
 
+**文件头** (filesys/filehdr.h(cc))
 
-- **filesys/filehdr.h(cc)**
+​	维护文件的头信息(类似于UNIX的i-node，)；文件以头编号唯一标识
 
-  维护文件的头信息(类似于UNIX的i-node，)；文件以头编号唯一标识
+```c++
+FileHeader header = new FileHead; //新建
+header->FetchFrom(sector);　//从存储的sector中获取文件头
+header->WriteBack(sector);　//写回修改
+```
 
-  > A FileHeader (discussed in detail below) is similar to a Unix inode in that the low-level file system routines know nothing about file names; files are uniquely identified by there FileHeader number.
 
-  
 
-  ​	
+**文件目录**	
+
 
 - **filesys/directory.h(cc)**
 
@@ -292,86 +321,171 @@ Nachos文件系统的初始结构如下：
 
 
 
+创建新文件目录项的过程：the top-level directory is stored in a fille associated with fnode 1. Updating the directory when creating a new file requires reading the file associated with fnode 1, finding an unused directory entry, initializing it, and then writing the directory back out to disk.
+
+> fnode(FileHeader node): the sector that contains the FileHeader
+
+
+
+---
+
 ### Exercise 2 扩展文件属性
 
  > Task:  增加文件描述信息，如“类型”、“创建时间”、“上次访问时间”、“上次修改时间”、“路径”等等。尝试突破文件名长度的限制。
 
-> When creating and modifying Nachos files, one must be careful to keep track of what data structures are on disk, and which ones are in memory. For example, when creating a file, a new FileHeader must be allocated, together with sectors to hold the data (free list file). The top-level directory must also be updated. However, these changes don't become permanent until the updated free list and directory files are flushed to disk.
+**函数准备**
 
-**解决思路：**
-
-**Task1: 增加文件描述信息：** 在文件`FileHeader.h`中增加表示以上信息的变量并通过函数进行设置
-
-- **fileType, createdTime**: FileSystem::Create()创建文件时会调用FileHeader::Allocate()，在其中进行设置；
-
-- **lastVisitedTime, LastModifiedTime**： 在OpenFile中进行修改
-
-- **fileRoad:** 设置一个char数组，顺序存储其目录名（数组大小即为目录深度上限）
-
-  > 原思路：用Nachos已有的list表示一个个目录文件名;这样访问很不方便
-
-**代码实现：**
-
-修改FileHeader的定义：
-
-```C++
-// Lab5 filesys-Ex2: add info of file
-char *fileType;
-int createdTime;      
-int lastVisitedTime;
-int lastModifiedTime;
-char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
-```
-
-在**FileHeader::Allocate()**中设置createdTime和fileType；
-
-- 创建时间：赋值为Nachos当前的运行时间，
-
-- 文件类型：暂时都先设置为Normal，之后若要传入特定的文件类型，再修改Allocate()；
-
-- 文件路径：赋值为当前路径（多级目录下要设置＜当前目录＞变量，保存完整路径）
-
-  目前初始化的时候，在FileSystem::Create()中，直接在根目录下进行Add()操作(line197)，即加入根目录下，如果是多级目录，先要通过FetchFrom()把文件切换到对应目录才行啊！
+为了属性扩展，增加获取文件类型和时间的函数 (声明/定义在filehdr.h/cc中)
 
 ```c++
-fileType = "Normal";   //pyq: need add parameters to Allocate(), TODO.
-createdTime = stats->totalTicks; //pyq:set all TimeInfo as totalTicks
-lastModifiedTime = stats->totalTicks;
-lastVisitedTime = stats->totalTicks;
-// fileRoad = //TODO: add name to FileHeader for convenience?
-```
-
-在filehdr.h(cc)中增加更新文件信息的接口
-
-​```c++
-//filehdr.h(cc)
-void FileHeader::updateFileInfo(bool writeFlag){
-    lastVisitedTime = stats->totalTicks;
-    if(writeFlag) //if been modified
-        lastModifiedTime = stats->totalTicks;
+//----------------------------------------------------------------------
+// Lab5-Ex2: getFileType
+// 如果没有文件类型，就返回空字符串
+//----------------------------------------------------------------------
+char* getFileType(char *fileName){
+    char *dot = strrchr(fileName, '.');  //获取最后一个'.'的位置
+    if(!dot || dot == fileName) return "";
+    else return dot+1;
+}
+//--------------------------------------------------------------------
+// Lab5-Ex2: getCurrentTime
+// 获取当前时间，以字符串返回
+//----------------------------------------------------------------------
+char* getCurrentTime(void){
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* currentTime = localtime(&rawtime);
+    return asctime(currentTime);  //asctime(): tansfer to string
 }
 ```
 
-当文件进行读写时，在OpenFile中调用从而更新；
+
+
+#### **Task1: 增加文件描述信息**
+
+**修改数据结构**
+
+修改FileHeader的定义，增加文件信息 **(*filesys/filehdr.h(cc)*)**
+
+```C++
+// Lab5 filesys-Ex2: add info of file
+char fileType[MaxTypeLength];
+char createdTime[LengthOfTimeStr];      
+char lastVisitedTime[LengthOfTimeStr];
+char lastModifiedTime[LengthOfTimeStr];
+// char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
+
+int headerSector;   //保存文件头所在的sector编号
+```
+
+在新增信息后，文件头中`NumDirect`变量的值需要更新 **(*filesys/filehdr.h(cc)*)**
 
 ```c++
-//openfile.cc/ReadAt()
-hdr->updateFileInfo(FALSE);
-//openfile.cc/WriteAt()
-hdr->updateFileInfo(TRUE);
+#define NumOfInt_Header 2
+#define NumOfTime_Header 3
+#define MaxTypeLength 5        // 4 + 1('/0')
+#define LengthOfTimeStr 25     // 24 + 1
+#define LengthOfAllString MaxTypeLength + LengthOfTimeStr*NumOfTime_Header
+#define NumDirect 	((SectorSize - NumOfInt_Header * sizeof(int) - LengthOfAllString) / sizeof(int))
+```
+
+增加控制这些变量的成员函数：**(*filesys/filehdr.h(cc)*)**
+
+```c++
+//Lab5-Ex２ update info of Header
+void HeaderCreateInit(char *typ);  //initialize all info for creation
+void setFileType(char *typ) {strcmp(typ, "") ? strcpy(fileType, typ) : strcpy(fileType, "None");}
+void setCreateTime(char *t) {strcpy(createdTime, t);}
+void setVisitTime(char *t) {strcpy(lastVisitedTime, t);}
+void setModifyTime(char *t) {strcpy(lastModifiedTime, t);}
+void setHeaderSector(int sectorID) {headerSector = sectorID;}
+int getHeaderSector() {return headerSector;}
+```
+
+在filehdr.h(cc)中实现HeaderCreateInit()：**(*filesys/filehdr.h(cc)*)**
+
+```c++
+void FileHeader::HeaderCreateInit(char *typ){
+    setCreateTime(typ);
+    char * currentTime = getCurrentTime();
+    setCreateTime(currentTime);
+    setVisitTime(currentTime);
+    setModifyTime(currentTime);
+}
 ```
 
 
 
-**Task2: 突破文件名长度限制：**
+**初始化和更新文件头信息**
+
+- 初始化文件系统时，模拟文件系统的文件的信息需要设置：
+
+在***filesys/filesys.cc/FileSystem()***中，初始化文件系统时设置BitMap文件和根目录文件的头信息
+
+```C++
+FileHeader *mapHdr = new FileHeader;
+mapHdr->HeaderCreateInit("mapH"); //Lab5: set info(type is mapH)
+FileHeader *dirHdr = new FileHeader;
+dirHdr->HeaderCreateInit("dirH"); //Lab5: set info(type is dirH)
+```
+
+- **创建文件**时，初始化信息：
+
+在***filesys/filesys.cc/Create()***中，创建文件成功后，写回disk前，设置其头信息：
+
+```c++
+success = TRUE;
+hdr->HeaderCreateInit(getFileType(name));  //Lab5: set info of file
+```
+
+- **打开/关闭文件**时，更新sector信息：
+
+> 增加成员变量`headerSector`的原因是，我们在OpenFile中可能需要修改头信息，操作更方便！
+
+打开文件时，设置文件头所在sector：***filesys/openfile.cc/OpenFile()***
+
+```c++
+hdr->setHeaderSector(sector); //Lab5: set HeaderSector
+```
+
+关闭文件时，把整个包含FileHeader的整个sector写回disk: ***filesys/openfile.cc/~OpenFile()***
+
+```c++
+hdr->WriteBack(hdr->getHeaderSector()); //Lab5: write back all header info
+```
+
+- 打开文件进行**读写**时，更新time信息: ***filesys/openfile.cc/ReadAt()&WriteAt()***
+
+```c++
+hdr->setVisitTime(getCurrentTime()); //in ReadAt() & WriteAt()
+hdr->setModifyTime(getCurrentTime()); // only in WriteAt()
+```
+
+
+
+**测试代码：** 为了测试方便，写一个`.sh`文件；
+
+**疑问：** 执行参数`-cp`和`-l`无法执行，why?
+
+```c++
+
+```
+
+
+
+#### Task2: 突破文件名长度限制
 
 > 背景：Nachos中文件名长度被限制在9以内(derectory.h/line22 & directory.cc/line138);
 >
 > `name`由FileSystem::Create()创建文件时以字符串指针传入；会以字符数组形式被保存在Directory的目录项中；
 
-所以可以直接更改为字符指针存储（或者动态获得传入的名字长度，再申请相应大小的数组）；（在FileHeader中没有保存name信息，是不是添加了更方便调用）
+**目前思路**
 
-**代码实现**
+动态获得传入的名字长度，再申请相应大小的数组；
+
+
+
+**代码实现**　
 
 修改目录项DiretoryEntry的定义(filesys/directory.h)
 
@@ -386,7 +500,7 @@ char *name;  //lab5-Ex2: take off restriction of fileName Length
 table[i].name = new char[strlen(name)];
 ```
 
-
+> 上述方法对文件名长度没有限制，是不安全的；合理的设置应该是，当前sector还剩多少空间，就设置多少空间为文件名上限（name只在Directory中保存，而FileHeader中则没有；因此需要考虑的是保存目录文件的sector）
 
 **测试放在模块一完成后一起进行**
 
@@ -405,7 +519,7 @@ table[i].name = new char[strlen(name)];
 - **文件长度上限**: 即文件最多可以使用多少sector，在filehdr.h中的以数组形式分配(dataSectors[NumDirect])，限制即为NumDirect大小(line19)；
 - **直接索引的含义**：dataSector[]中保存的是disk sector的真实编号
 - **4KB限制**：SectorSize=128Bytes, sectorID(int)=4Bytes，所以存储文件header的分区忽略其他信息后，最多可以保存128/4=32个SectorID，则文件上限为32*128Bytes = 4KB
-- **NumDirect宏定义的含义**: FileHeader保存在一个sector中，那么除去初始时的`numBytes`和`numSectors`两个`int`变量，剩下空间**最多**可以保存多少个sector编号；(但其实经过Ex2后空间又减小了)
+- **NumDirect宏定义的含义**: FileHeader保存在一个sector中，那么除去初始时的`numBytes`和`numSectors`两个`int`变量，剩下空间**最多**可以保存多少个sector编号；(但其实经过Ex2后空间又减小了，原来还能存30个sector编号，现在只能存9个了)
 
 ```c++
 #define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
@@ -413,7 +527,6 @@ table[i].name = new char[strlen(name)];
 
 - **具体分配disk sector:** 在FileHeader::Allocate()中lines49-50:在BitMap中不断找寻，
 
-  
 
 
 
@@ -423,9 +536,7 @@ table[i].name = new char[strlen(name)];
 
 
 
-
-
-​```C++
+```C++
 #define WARE_HOUSE_SIZE 5　// size of buffer
 typedef struct {
   int value;
@@ -485,6 +596,7 @@ wareHouse::consume()
 
 ```C++
 wareHouse *warehouse = new wareHouse();
+```
 
 void Producer(int itemNum) {
     for(int i = 0; i < itemNum; i++){
@@ -510,7 +622,7 @@ void Consumer(int iterNum) {
 
 创建两个线程，分别执行生产和消费，其中生产的商品值直接赋值为序号；
 
-```C++
+​```C++
 void Lab3ProConTest(){
     DEBUG('p', "Now Test Producer & Consumer!\n");
     wareHouse *warehouse = new wareHouse();
@@ -743,9 +855,21 @@ void Condition::Signal(Lock* conditionLock)
 > - 阅读Nachos源代码中与异步磁盘相关的代码，理解Nachos系统中异步访问模拟磁盘的工作原理。 filesys/synchdisk.h和filesys/synchdisk.cc
 > - 利用异步访问模拟磁盘的工作原理，在Class Console的基础上，实现Class SynchConsole。
 
-是raw disk上层的封装！
+物理磁盘是异步的(如何理解？)　读写操作会立即执行（这不是同步吗）
 
+物理磁盘默认同一时间只会有一个请求
 
+- 互斥实现：Lock
+
+- 同步实现：Semaphore (当有可被中断时？)
+
+  信号量的value初始被设置为0，如何理解？
+
+  在进行磁盘读写时都会执行`semaphore->P()`，可以理解为等待`RequestDone()`，因为在`RequestDone()`中会执行`semaphore->V()`，可以看做是唤醒操作；
+
+  疑问：那`RequestDone()`是由谁调用的呢？读写接口调用的raw disk的读写操作中在完成后都没有调用啊；（其中会进行中断调度，Handler为DiskDone，但是其定义里也没有执行`RequstDone`啊）
+
+  Openfile中的读写好像也没有
 
 
 

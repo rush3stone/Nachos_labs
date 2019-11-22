@@ -16,8 +16,15 @@
 
 #include "disk.h"
 #include "bitmap.h"
+
+#define NumOfInt_Header 2
+#define NumOfTime_Header 3
+#define MaxTypeLength 5        // 4 + 1('/0')
+#define LengthOfTimeStr 25     // 24 + 1
+#define LengthOfAllString MaxTypeLength + LengthOfTimeStr*NumOfTime_Header
+
 // pyq: num of direct pointers to the file's data sectors
-#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int)) 
+#define NumDirect 	((SectorSize - NumOfInt_Header * sizeof(int) - LengthOfAllString) / sizeof(int))
 #define MaxFileSize 	(NumDirect * SectorSize)
 // Lab5 fileSys: limit of directory depth
 #define MaxDirectoryDepth 10
@@ -58,7 +65,16 @@ class FileHeader {
 
     void Print();			// Print the contents of the file.
 
-    void updateFileInfo(bool writeFlag);  //Lab5-Ex1: update visit/modify time of file
+    //Lab5-Ex２ update info of Header
+    void HeaderCreateInit(char *typ);  //initialize all info for creation
+    
+    void setFileType(char *typ) {strcmp(typ, "") ? strcpy(fileType, typ) : strcpy(fileType, "None");}
+    void setCreateTime(char *t) {strcpy(createdTime, t);}
+    void setVisitTime(char *t) {strcpy(lastVisitedTime, t);}
+    void setModifyTime(char *t) {strcpy(lastModifiedTime, t);}
+    void setHeaderSector(int sectorID) {headerSector = sectorID;}
+    int getHeaderSector() {return headerSector;}
+  
 
   private:
     int numBytes;			// Number of bytes in the file
@@ -67,11 +83,17 @@ class FileHeader {
 					// block in the file
 
     // Lab5 filesys-Ex2: add info of file
-    char *fileType;
-    int createdTime;      
-    int lastVisitedTime;
-    int lastModifiedTime;
-    char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
+    char fileType[MaxTypeLength];
+    char createdTime[LengthOfTimeStr];      
+    char lastVisitedTime[LengthOfTimeStr];
+    char lastModifiedTime[LengthOfTimeStr];
+    // char *fileRoad[MaxDirectoryDepth];  //pyq: the limit of Directory depth
+
+    int headerSector;   //保存文件头所在的sector编号
 };
+
+extern char* getFileType(char *fileName);
+extern char* getCurrentTime(void);
+
 
 #endif // FILEHDR_H

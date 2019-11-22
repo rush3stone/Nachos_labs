@@ -85,7 +85,9 @@ FileSystem::FileSystem(bool format)
         Directory *directory = new Directory(NumDirEntries);
  
         FileHeader *mapHdr = new FileHeader;
+        mapHdr->HeaderCreateInit("mapH"); //Lab5: set info(type is mapH)
         FileHeader *dirHdr = new FileHeader;
+        dirHdr->HeaderCreateInit("dirH"); //Lab5: set info(type is dirH)
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -202,6 +204,7 @@ FileSystem::Create(char *name, int initialSize)
                 success = FALSE;	// no space on disk for data
             else {	
                 success = TRUE;
+                hdr->HeaderCreateInit(getFileType(name));  //Lab5: set info of file
             // everthing worked, flush all changes back to disk
                 hdr->WriteBack(sector); 		       // pyq: FileHeader
                 directory->WriteBack(directoryFile);   
