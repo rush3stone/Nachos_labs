@@ -42,7 +42,7 @@
 
 
 
-**姓名：彭宇清　　学号：1901210731**
+**姓名：青宇　　学号：190121%$$$$**
 
 **日期：2019/11/20**
 
@@ -113,6 +113,54 @@
 **具体Exercise完成情况**
 
 ### 模块一 文件系统的基本操作
+
+#### 文件系统测试
+
+- **代码修改部分**
+  - 先在filesys/MakeFile增加新的宏定义，用于测试Nachos文件系统
+
+	  ```c++
+  DEFINES = ... -DTEST_FILESYS
+    ```
+
+  
+  - 修改threads/main.cc中关于`THREADS`的判断部分(lines90-109)
+  
+    如果不跳过该循环，它会把所有传入的参数都处理了；
+  
+    ```C++
+    // when testing fileSys, skip this block, otherwise {for block} will consume all parameters!
+    #if THREADS && !TEST_FILESYS
+    ```
+  
+  - 执行测试语句（详细参数设置查看`threads/main.cc`）
+  
+    ```bash
+    sudo ./nachos -D  //打印整个文件系统
+    suod ./nachos -f  //初始化文件系统
+  ```
+    
+    
+  
+
+- **疑问１：** 通过参数`D`查看文件系统，但是报错！
+
+  ```bash
+  stone@stone:/mnt/shared/Nachos/nachos-3.4/code/filesys$ ./nachos -D
+  Assertion failed: line 159, file "../machine/sysdep.cc"
+  Aborted (core dumped)
+  ```
+  
+  **解决：** 通过查看`machine/sysdep.cc`对应代码，发现是打开文件失败，所以应该是文件权限问题；使用命令`sudo ./nachos -D`即可正常执行
+  **遗留：** 怎样赋予用户更大权限？
+
+
+
+- **疑问２：** 复制参数`-cp`和打印目录`-l`不能使用，为什么？
+
+
+
+---
 
 ### Exercise 1 源代码阅读
 
@@ -295,7 +343,7 @@ lastVisitedTime = stats->totalTicks;
 
 在filehdr.h(cc)中增加更新文件信息的接口
 
-```c++
+​```c++
 //filehdr.h(cc)
 void FileHeader::updateFileInfo(bool writeFlag){
     lastVisitedTime = stats->totalTicks;
@@ -377,7 +425,7 @@ table[i].name = new char[strlen(name)];
 
 
 
-```C++
+​```C++
 #define WARE_HOUSE_SIZE 5　// size of buffer
 typedef struct {
   int value;
@@ -614,7 +662,7 @@ hdr->Allocate(freeMap, initialSize)
 
   
 
-  当前FileHeader类中关于DataSector[]的定义其实不用变，每次只需要更改他的`numBytes`和`numSectors`即可（*不过Exercise3要实现的间接索引还没思路？*）
+  当前FileHeader类中关于DataSector[]的定义其实不用变，每次只需要更改他的`numBytes`和`numSectors`即可（*不过Exercise3要实现的间接索引还没思路？*　可以在直接索引下实现动态增长）
 
 
 

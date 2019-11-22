@@ -8,7 +8,11 @@
 # All rights reserved.  See copyright.h for copyright notice and limitation 
 # of liability and disclaimer of warranty provisions.
 
-DEFINES =-DTHREADS -DUSER_PROGRAM -DVM -DFILESYS_NEEDED -DFILESYS
+# Nachos default
+# DEFINES =-DTHREADS -DUSER_PROGRAM -DVM -DFILESYS_NEEDED -DFILESYS
+# add TEST_FILESYS
+DEFINES =-DTHREADS -DUSER_PROGRAM -DVM -DFILESYS_NEEDED -DFILESYS -DTEST_FILESYS
+
 INCPATH = -I../filesys -I../bin -I../vm -I../userprog -I../threads -I../machine
 HFILES = $(THREAD_H) $(USERPROG_H) $(VM_H) $(FILESYS_H)
 CFILES = $(THREAD_C) $(USERPROG_C) $(VM_C) $(FILESYS_C)
@@ -361,8 +365,8 @@ elevator.o: ../machine/elevator.cc /usr/include/stdc-predef.h \
  ../machine/interrupt.h ../machine/stats.h ../machine/timer.h \
  ../filesys/synchdisk.h ../machine/disk.h ../threads/synch.h
 addrspace.o: ../userprog/addrspace.cc /usr/include/stdc-predef.h \
- ../threads/copyright.h ../threads/system.h ../threads/copyright.h \
- ../threads/utility.h ../threads/bool.h ../machine/sysdep.h \
+ ../machine/machine.h ../threads/copyright.h ../threads/utility.h \
+ ../threads/copyright.h ../threads/bool.h ../machine/sysdep.h \
  /usr/include/stdio.h /usr/include/features.h \
  /usr/include/i386-linux-gnu/sys/cdefs.h \
  /usr/include/i386-linux-gnu/bits/wordsize.h \
@@ -374,9 +378,9 @@ addrspace.o: ../userprog/addrspace.cc /usr/include/stdc-predef.h \
  /usr/include/_G_config.h /usr/include/wchar.h ../threads/stdarg.h \
  /usr/include/i386-linux-gnu/bits/stdio_lim.h \
  /usr/include/i386-linux-gnu/bits/sys_errlist.h /usr/include/string.h \
- /usr/include/xlocale.h ../threads/thread.h ../machine/machine.h \
- ../threads/utility.h ../machine/translate.h ../machine/disk.h \
- ../userprog/bitmap.h ../filesys/openfile.h ../userprog/addrspace.h \
+ /usr/include/xlocale.h ../machine/translate.h ../machine/disk.h \
+ ../userprog/bitmap.h ../filesys/openfile.h ../threads/system.h \
+ ../threads/utility.h ../threads/thread.h ../userprog/addrspace.h \
  ../filesys/filesys.h ../filesys/openfile.h ../threads/scheduler.h \
  ../threads/list.h ../machine/interrupt.h ../threads/list.h \
  ../machine/stats.h ../machine/timer.h ../filesys/synchdisk.h \

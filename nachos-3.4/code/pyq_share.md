@@ -1,3 +1,18 @@
+
+stone@stone:/mnt/shared/Nachos/nachos-3.4/code/filesys$ ./nachos -D
+Assertion failed: line 159, file "../machine/sysdep.cc"
+Aborted (core dumped)
+
+
+
+
+
+
+
+
+
+
+
 # LAB4 同步机制 讨论记录
 
 ​                                                                                                                                    *记录人：彭宇清*

@@ -87,8 +87,11 @@ main(int argc, char **argv)
 
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
-    
-#ifdef THREADS
+
+// Nachos default
+// #ifdef THREADS	 
+// when testing fileSystem, skip this block, otherwise {for block} will consume all parameters!
+#if THREADS && !TEST_FILESYS
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
       argCount = 1;
       switch (argv[0][1]) {
